@@ -34,14 +34,14 @@ class MovieApplication : Application() {
     }
     
     private fun createSources(): List<MovieSource> = listOf(
-        SuboMovieSource(
-            sourceId = "subo_04",
-            sourceName = "速播资源",
-            priority = 10
-        ),
         ZuidaMovieSource(
             sourceId = "zuida_01",
             sourceName = "最大资源",
+            priority = 10
+        ),
+        SuboMovieSource(
+            sourceId = "subo_04",
+            sourceName = "速播资源",
             priority = 9
         ),
         FfzyMovieSource(
