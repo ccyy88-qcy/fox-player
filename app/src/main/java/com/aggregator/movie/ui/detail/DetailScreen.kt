@@ -138,8 +138,11 @@ fun DetailScreen(
                     Text(m.title, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
-                        if (m.score.isNotBlank()) {
+                        if (m.score.isNotBlank() && m.score != "0.0" && m.score != "0") {
                             Text("⭐ ${m.score}", color = OrangePrimary, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                        } else {
+                            Text("📺 待播", color = TextSecondary, fontSize = 13.sp)
                             Spacer(modifier = Modifier.width(12.dp))
                         }
                         if (m.year.isNotBlank()) {
@@ -191,19 +194,27 @@ fun DetailScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            itemsIndexed(currentSource.episodes) { epIndex, _ ->
+                            itemsIndexed(currentSource.episodes) { epIndex, ep ->
                                 FilledTonalButton(
                                     onClick = {
-                                        navController.navigate(Screen.Player.createRoute(movieId, sourceId, epIndex))
+                                        try {
+                                            val playerRoute = Screen.Player.createRoute(movieId, sourceId, epIndex)
+                                            navController.navigate(playerRoute) {
+                                                launchSingleTop = false
+                                                restoreState = false
+                                            }
+                                        } catch (e: Exception) {
+                                            error = "跳转播放失败: ${e.message}"
+                                        }
                                     },
                                     colors = ButtonDefaults.filledTonalButtonColors(
                                         containerColor = DarkSurfaceVariant, contentColor = TextPrimary
                                     ),
                                     shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.size(width = 60.dp, height = 40.dp),
+                                    modifier = Modifier.size(width = if (currentSource.episodes.size > 50) 48.dp else 60.dp, height = 40.dp),
                                     contentPadding = PaddingValues(4.dp)
                                 ) {
-                                    Text("${epIndex + 1}", fontSize = 13.sp)
+                                    Text(ep.title.take(4).replace("第", "").replace("集", "").ifBlank { "${epIndex + 1}" }, fontSize = 13.sp)
                                 }
                             }
                         }

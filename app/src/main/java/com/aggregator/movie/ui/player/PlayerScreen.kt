@@ -7,6 +7,7 @@ import android.os.Build
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -207,6 +208,17 @@ fun PlayerScreen(
         }
     }
     
+    // 安卓物理返回键处理
+    BackHandler {
+        if (isFullscreen) {
+            isFullscreen = false
+            hideControlsJob?.cancel()
+            showControls = true
+        } else {
+            navController.popBackStack()
+        }
+    }
+    
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // 播放器
         AndroidView(
@@ -318,7 +330,7 @@ fun PlayerScreen(
                 val curSrc = playSources.getOrNull(currentSourceIndex)
                 if (curSrc != null && curSrc.episodes.size > 1) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        itemsIndexed(curSrc.episodes) { idx, _ ->
+                        itemsIndexed(curSrc.episodes) { idx, ep ->
                             FilledTonalButton(
                                 onClick = { currentEpisodeIndex = idx },
                                 colors = ButtonDefaults.filledTonalButtonColors(
@@ -326,10 +338,17 @@ fun PlayerScreen(
                                     contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.size(width = 48.dp, height = 36.dp),
+                                modifier = Modifier.size(
+                                    width = if (ep.title.length > 4) 60.dp else 48.dp, 
+                                    height = 36.dp
+                                ),
                                 contentPadding = PaddingValues(2.dp)
-                            ) { Text("${idx + 1}", fontSize = 11.sp) }
-                        }
+                            ) { 
+                                Text(
+                                    ep.title.replace("第", "").replace("集", "").ifBlank { "${idx + 1}" }, 
+                                    fontSize = 11.sp
+                                ) 
+                            }
                     }
                 }
             }
