@@ -12,44 +12,39 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
     
-    - name: Set up JDK 17
+    - name: Install JDK & Android SDK
       run: |
+        # JDK
         sudo apt-get update -qq
         sudo apt-get install -y -qq openjdk-17-jdk-headless 2>&1 | tail -3
-        java -version 2>&1
-    
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-    
-    - name: Accept licenses & install SDK components
-      run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
-    
-    - name: Make gradlew executable
-      run: chmod +x gradlew
+        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+        
+        # Android SDK
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        cd $HOME/android-sdk/cmdline-tools
+        curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q tools.zip && rm tools.zip
+        mv cmdline-tools latest
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        
+        # Accept licenses + install platforms
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
     
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      run: |
+        chmod +x gradlew
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+        export ANDROID_HOME=$HOME/android-sdk
+        ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
     
-    - name: Upload Debug APK
+    - name: Upload APK
       if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
-    
-    - name: Upload build logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: |
-          app/build/reports/
-          .gradle/
