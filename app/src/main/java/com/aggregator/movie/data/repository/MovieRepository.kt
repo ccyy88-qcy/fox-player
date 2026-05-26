@@ -20,7 +20,11 @@ class MovieRepository(
     }
     
     suspend fun getCategories(): Result<List<Category>> = runCatching {
-        sourceManager.getPrimarySource()?.getCategories() ?: emptyList()
+        val all = sourceManager.getPrimarySource()?.getCategories() ?: emptyList()
+        // 过滤掉不文明分类
+        all.filterNot { cat ->
+            cat.name.contains("伦理") || cat.name.contains("三级")
+        }
     }
     
     suspend fun getMoviesByCategory(categoryId: String, page: Int): Result<SearchResult> = runCatching {
