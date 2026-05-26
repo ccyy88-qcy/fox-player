@@ -85,7 +85,7 @@ fun HomeScreen(navController: NavHostController) {
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedMaterialContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary
                         ),

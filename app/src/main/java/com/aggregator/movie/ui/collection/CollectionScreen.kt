@@ -23,11 +23,13 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.FavoriteEntity
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun CollectionScreen(navController: NavHostController) {
     val repository = MovieApplication.instance.repository
     val favorites by repository.getFavorites().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     
     Column(modifier = Modifier.fillMaxSize()) {
         // 标题栏
@@ -52,7 +54,7 @@ fun CollectionScreen(navController: NavHostController) {
                 )
                 if (favorites.isNotEmpty()) {
                     TextButton(onClick = {
-                        kotlinx.coroutines.GlobalScope.launch {
+                        scope.launch {
                             repository.clearFavorites()
                         }
                     }) {
@@ -89,7 +91,7 @@ fun CollectionScreen(navController: NavHostController) {
                             navController.navigate(Screen.Detail.createRoute(fav.movieId, fav.sourceId))
                         },
                         onRemove = {
-                            kotlinx.coroutines.GlobalScope.launch {
+                            scope.launch {
                                 repository.removeFavorite(fav.movieId)
                             }
                         }

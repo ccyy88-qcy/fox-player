@@ -31,6 +31,7 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.PlaySource
 import com.aggregator.movie.data.model.PlayUrl
 import com.aggregator.movie.ui.theme.OrangePrimary
+import kotlin.contracts.ExperimentalContracts
 import kotlinx.coroutines.launch
 
 @Composable
@@ -278,6 +279,7 @@ private fun playExo(player: ExoPlayer, playUrl: PlayUrl) {
     player.playWhenReady = true
 }
 
+@OptIn(ExperimentalContracts::class)
 private suspend fun tryNextSource(
     playSources: List<PlaySource>,
     currentSourceIndex: Int,

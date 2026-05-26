@@ -27,6 +27,7 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.*
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,7 +59,7 @@ fun DetailScreen(
                 onFailure = {} // 静默失败
             )
             // 检查收藏状态
-            repository.isFavorite(movieId).collect { isFavorite = it }
+            isFavorite = repository.isFavorite(movieId).first()
             isLoading = false
         }
     }

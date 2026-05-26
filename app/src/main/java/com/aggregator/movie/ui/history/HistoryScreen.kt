@@ -23,6 +23,7 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.WatchHistoryEntity
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -30,6 +31,7 @@ import java.util.*
 fun HistoryScreen(navController: NavHostController) {
     val repository = MovieApplication.instance.repository
     val histories by repository.getWatchHistory().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
     
     Column(modifier = Modifier.fillMaxSize()) {
         // 标题栏
@@ -54,7 +56,7 @@ fun HistoryScreen(navController: NavHostController) {
                 )
                 if (histories.isNotEmpty()) {
                     TextButton(onClick = {
-                        kotlinx.coroutines.GlobalScope.launch {
+                        scope.launch {
                             repository.clearHistory()
                         }
                     }) {
@@ -91,7 +93,7 @@ fun HistoryScreen(navController: NavHostController) {
                             )
                         },
                         onDelete = {
-                            kotlinx.coroutines.GlobalScope.launch {
+                            scope.launch {
                                 repository.clearHistory() // 简化：清全部。实际应删单条
                             }
                         }

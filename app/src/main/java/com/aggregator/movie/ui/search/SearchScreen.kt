@@ -90,7 +90,7 @@ fun SearchScreen(navController: NavHostController, initialQuery: String = "") {
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedMaterialContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary
                     )
