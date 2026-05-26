@@ -141,7 +141,8 @@ fun PlayerScreen(
     }
 
     // ★ 修复：解析播放地址 + 断点续传恢复
-    LaunchedEffect(currentEpisodeIndex, currentSourceIndex) {
+    // 依赖 playSources.size 解决首次加载时 playSources 为空导致视频不播放的bug
+    LaunchedEffect(currentEpisodeIndex, currentSourceIndex, playSources.size) {
         if (playSources.isEmpty()) return@LaunchedEffect
         val source = playSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
         val episode = source.episodes.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
