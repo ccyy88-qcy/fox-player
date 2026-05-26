@@ -24,42 +24,46 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
     
-    - name: Install Android SDK components
+    - name: Accept licenses & install SDK components
       run: |
-        sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
         yes | sdkmanager --licenses
+        sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
     
-    - name: Cache Gradle
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: ${{ runner.os }}-gradle-
+    - name: Install Gradle 8.5
+      run: |
+        wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip -O /tmp/gradle.zip
+        unzip -q /tmp/gradle.zip -d /opt/
+        ln -s /opt/gradle-8.5/bin/gradle /usr/local/bin/gradle
+        gradle --version
     
     - name: Build Debug APK
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: assembleDebug --no-daemon --stacktrace
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-    
-    - name: Build Release APK
-      uses: gradle/gradle-build-action@v3
-      with:
-        arguments: assembleRelease --no-daemon --stacktrace
+      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
     
     - name: Upload Debug APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
     
+    - name: Build Release APK
+      if: success()
+      run: gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build-release.log
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+    
     - name: Upload Release APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-release
         path: app/build/outputs/apk/release/app-release.apk
+    
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: build-*.log
