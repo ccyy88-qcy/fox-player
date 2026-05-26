@@ -27,7 +27,6 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.*
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -49,17 +48,17 @@ fun DetailScreen(
         scope.launch {
             isLoading = true
             // 获取详情
-            repository.getMovieDetail(movieId, sourceId).fold(
-                onSuccess = { movie = it },
-                onFailure { error = it.message }
-            )
+            val detailResult = repository.getMovieDetail(movieId, sourceId)
+            if (detailResult.isSuccess) movie = detailResult.getOrNull()
+            else error = detailResult.exceptionOrNull()?.message
+            
             // 获取播放源
-            repository.getPlaySources(movieId, sourceId).fold(
-                onSuccess = { playSources = it },
-                onFailure = {} // 静默失败
-            )
+            val sourceResult = repository.getPlaySources(movieId, sourceId)
+            if (sourceResult.isSuccess) playSources = sourceResult.getOrDefault(emptyList())
+            
             // 检查收藏状态
-            isFavorite = repository.isFavorite(movieId).first()
+            try { isFavorite = repository.isFavorite(movieId).first() } catch (_: Exception) {}
+            
             isLoading = false
         }
     }
@@ -84,10 +83,9 @@ fun DetailScreen(
     
     movie?.let { m ->
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            // === 顶部封面+信息 ===
+            // 顶部封面+信息
             item {
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    // 背景模糊封面
                     AsyncImage(
                         model = m.coverUrl,
                         contentDescription = null,
@@ -107,7 +105,6 @@ fun DetailScreen(
                                 )
                             )
                     )
-                    // 返回按钮
                     IconButton(
                         onClick = { navController.popBackStack() },
                         modifier = Modifier
@@ -116,7 +113,6 @@ fun DetailScreen(
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
                     }
-                    // 收藏按钮
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -137,14 +133,8 @@ fun DetailScreen(
                         )
                     }
                 }
-                // 影片信息
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = m.title,
-                        color = TextPrimary,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(m.title, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
                         if (m.score.isNotBlank()) {
@@ -156,42 +146,22 @@ fun DetailScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                         }
                     }
-                    if (m.genre.isNotBlank()) {
-                        Text("类型: ${m.genre}", color = TextSecondary, fontSize = 13.sp)
-                    }
-                    if (m.region.isNotBlank()) {
-                        Text("地区: ${m.region}", color = TextSecondary, fontSize = 13.sp)
-                    }
-                    if (m.director.isNotBlank()) {
-                        Text("导演: ${m.director}", color = TextSecondary, fontSize = 13.sp)
-                    }
-                    if (m.actors.isNotBlank()) {
-                        Text("主演: ${m.actors}", color = TextSecondary, fontSize = 13.sp)
-                    }
+                    if (m.genre.isNotBlank()) Text("类型: ${m.genre}", color = TextSecondary, fontSize = 13.sp)
+                    if (m.region.isNotBlank()) Text("地区: ${m.region}", color = TextSecondary, fontSize = 13.sp)
+                    if (m.director.isNotBlank()) Text("导演: ${m.director}", color = TextSecondary, fontSize = 13.sp)
+                    if (m.actors.isNotBlank()) Text("主演: ${m.actors}", color = TextSecondary, fontSize = 13.sp)
                     if (m.description.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = m.description,
-                            color = TextSecondary,
-                            fontSize = 13.sp,
-                            maxLines = 4,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 18.sp
-                        )
+                        Text(m.description, color = TextSecondary, fontSize = 13.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, lineHeight = 18.sp)
                     }
                 }
             }
             
-            // === 播放线路选择 ===
+            // 播放线路
             if (playSources.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "播放线路",
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    Text("播放线路", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -200,14 +170,10 @@ fun DetailScreen(
                             FilterChip(
                                 selected = index == selectedSourceIndex,
                                 onClick = { selectedSourceIndex = index },
-                                label = { 
-                                    Text(source.name, fontSize = 12.sp) 
-                                },
+                                label = { Text(source.name, fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = OrangePrimary,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = DarkSurface,
-                                    labelColor = TextSecondary
+                                    selectedContainerColor = OrangePrimary, selectedLabelColor = Color.White,
+                                    containerColor = DarkSurface, labelColor = TextSecondary
                                 )
                             )
                         }
@@ -215,40 +181,28 @@ fun DetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
                 
-                // === 选集 ===
                 val currentSource = playSources.getOrNull(selectedSourceIndex)
                 if (currentSource != null) {
                     item {
-                        Text(
-                            text = "选集 (${currentSource.episodes.size}集)",
-                            color = TextPrimary,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        Text("选集 (${currentSource.episodes.size}集)", color = TextPrimary, fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            itemsIndexed(currentSource.episodes) { epIndex, episode ->
+                            itemsIndexed(currentSource.episodes) { epIndex, _ ->
                                 FilledTonalButton(
                                     onClick = {
-                                        navController.navigate(
-                                            Screen.Player.createRoute(movieId, sourceId, epIndex)
-                                        )
+                                        navController.navigate(Screen.Player.createRoute(movieId, sourceId, epIndex))
                                     },
                                     colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = DarkSurfaceVariant,
-                                        contentColor = TextPrimary
+                                        containerColor = DarkSurfaceVariant, contentColor = TextPrimary
                                     ),
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.size(width = 60.dp, height = 40.dp),
                                     contentPadding = PaddingValues(4.dp)
                                 ) {
-                                    Text(
-                                        text = "${epIndex + 1}",
-                                        fontSize = 13.sp
-                                    )
+                                    Text("${epIndex + 1}", fontSize = 13.sp)
                                 }
                             }
                         }
@@ -256,7 +210,6 @@ fun DetailScreen(
                 }
             }
             
-            // 底部间距
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }

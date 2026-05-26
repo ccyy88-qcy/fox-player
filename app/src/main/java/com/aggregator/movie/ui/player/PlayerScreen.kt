@@ -290,11 +290,11 @@ private suspend fun tryNextSource(
 ) {
     for (i in 1 until playSources.size) {
         val nextIdx = (currentSourceIndex + i) % playSources.size
-        repository.resolvePlayUrl(playSources, episodeIndex).fold(
-            onSuccess = { onSuccess(it, nextIdx) },
-            onFailure = { continue }
-        )
-        return
+        val result = repository.resolvePlayUrl(playSources, episodeIndex)
+        if (result.isSuccess) {
+            onSuccess(result.getOrThrow(), nextIdx)
+            return
+        }
     }
     onAllFailed()
 }
