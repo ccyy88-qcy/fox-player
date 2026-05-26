@@ -60,7 +60,7 @@ class FfzyMovieSource(
     override suspend fun getCategories(): List<Category> {
         return try {
             val classes = fetchClassList()
-            val filtered = classes.filter { (id, _) -> id > 4 }
+            val filtered = classes.filter { (id, _) -> id !in setOf(1, 2, 3) }
             val all = Category("all", "全部", MovieType.MOVIE)
             val mapped = filtered.map { (id, name) ->
                 val type = when {

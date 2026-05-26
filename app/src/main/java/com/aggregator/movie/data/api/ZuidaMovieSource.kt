@@ -62,8 +62,9 @@ class ZuidaMovieSource(
     override suspend fun getCategories(): List<Category> {
         return try {
             val classes = fetchClassList()
-            // 只返回叶节点子分类（排除父分类1-4，它们没有直接数据）
-            val filtered = classes.filter { (id, _) -> id > 4 }
+            // 排除无数据的父分类(1-3)，保留4(动漫)及所有子分类
+            val excludeParentIds = setOf(1, 2, 3)
+            val filtered = classes.filter { (id, _) -> id !in excludeParentIds }
             val all = Category("all", "全部", MovieType.MOVIE)
             val mapped = filtered.map { (id, name) ->
                 val type = when {
