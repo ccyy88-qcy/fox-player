@@ -27,6 +27,7 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.*
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
