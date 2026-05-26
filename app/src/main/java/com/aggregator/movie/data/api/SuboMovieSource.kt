@@ -24,25 +24,20 @@ class SuboMovieSource(
 
     override suspend fun getHomeData(): HomeData {
         return try {
-            val json = apiCall("ac=list&pg=1")
+            val json = apiCall("ac=list&pg=1&h=24")
             val list = json.optJSONArray("list") ?: return HomeData()
-            val ids = mutableListOf<String>()
-            for (i in 0 until list.length()) {
-                val id = list.getJSONObject(i).optString("vod_id", "")
-                if (id.isNotBlank()) ids.add(id)
-            }
-            val movies = fetchDetailBatch(ids.take(20))
-            val bannerIds = ids.take(5)
-            val banners = if (bannerIds.isNotEmpty()) fetchDetailBatch(bannerIds) else emptyList()
+            // 直接用列表数据，不请求详情（加速）
+            val movies = parseListOnly(json)
+            val banners = movies.take(5)
 
             HomeData(
                 banners = banners,
-                hotMovies = movies.take(10),
-                hotTv = movies.filter { it.genre.contains("剧") }.take(10),
+                hotMovies = movies.take(12),
+                hotTv = movies.filter { it.genre.contains("剧") }.take(8),
                 hotAnime = movies.filter {
                     it.genre.contains("动漫") || it.genre.contains("动画")
-                }.take(10),
-                latestMovies = movies.takeLast(10)
+                }.take(8),
+                latestMovies = movies.take(12)
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -96,18 +91,34 @@ class SuboMovieSource(
     override suspend fun getMoviesByCategory(categoryId: String, page: Int): SearchResult {
         return try {
             val typeParam = if (categoryId == "all") "" else "&t=$categoryId"
-            val json = apiCall("ac=list$typeParam&pg=$page")
+            val json = apiCall("ac=list$typeParam&pg=$page&h=24")
             val list = json.optJSONArray("list") ?: return SearchResult(emptyList(), 1, page)
-            val ids = mutableListOf<String>()
-            for (i in 0 until list.length()) {
-                val id = list.getJSONObject(i).optString("vod_id", "")
-                if (id.isNotBlank()) ids.add(id)
-            }
-            val movies = fetchDetailBatch(ids)
+            // 直接用列表数据，不请求详情（加快速度）
+            val movies = parseListOnly(json)
             SearchResult(movies, json.optInt("pagecount", 1), page)
         } catch (e: Exception) {
             SearchResult(emptyList(), 1, page)
         }
+    }
+
+    /** 快速解析列表（只含基础字段，不请求详情API） */
+    private fun parseListOnly(json: JSONObject): List<Movie> {
+        val list = json.optJSONArray("list") ?: return emptyList()
+        val movies = mutableListOf<Movie>()
+        for (i in 0 until list.length()) {
+            val item = list.getJSONObject(i)
+            movies.add(Movie(
+                id = "${sourceId}_${item.optString("vod_id", "0")}",
+                sourceId = sourceId,
+                title = item.optString("vod_name", ""),
+                type = inferType(item.optString("type_name", "")),
+                coverUrl = item.optString("vod_pic", ""),
+                score = item.optString("vod_score", ""),
+                year = item.optString("vod_year", ""),
+                genre = item.optString("type_name", ""),
+            ))
+        }
+        return movies
     }
 
     override suspend fun search(keyword: String, page: Int): SearchResult {
