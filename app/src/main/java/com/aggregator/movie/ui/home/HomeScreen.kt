@@ -93,9 +93,9 @@ fun HomeScreen(navController: NavHostController) {
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp),
+                                .height(42.dp),
                             singleLine = true,
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(21.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = RedPrimary,
                                 unfocusedBorderColor = Color.Transparent,
