@@ -3,8 +3,13 @@ package com.aggregator.movie.ui.player
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.os.Build
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -52,6 +57,16 @@ fun PlayerScreen(
     var isChangingSource by remember { mutableStateOf(false) }
     var playError by remember { mutableStateOf<String?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
+    var showControls by remember { mutableStateOf(true) }
+    var hideControlsJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    
+    fun scheduleHideControls() {
+        hideControlsJob?.cancel()
+        hideControlsJob = scope.launch {
+            kotlinx.coroutines.delay(4000)
+            showControls = false
+        }
+    }
     
     // ExoPlayer
     val exoPlayer = remember {
@@ -140,21 +155,55 @@ fun PlayerScreen(
         }
     }
     
-    // 横屏控制
+    // 横屏控制 + 沉浸全屏
     DisposableEffect(isFullscreen) {
         val activity = context as? Activity
         activity?.let {
             if (isFullscreen) {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                // 隐藏状态栏/导航栏（沉浸模式）
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    it.window.setDecorFitsSystemWindows(false)
+                    it.window.insetsController?.hide(WindowInsets.Type.systemBars())
+                    it.window.insetsController?.systemBarsBehavior =
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.window.decorView.systemUiVisibility = (
+                        android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                        android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                        android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    )
+                }
             } else {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 it.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                // 恢复系统栏
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    it.window.setDecorFitsSystemWindows(true)
+                    it.window.insetsController?.show(WindowInsets.Type.systemBars())
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+                }
             }
         }
         onDispose {
-            (context as? Activity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            (context as? Activity)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            (context as? Activity)?.let { act ->
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    act.window.setDecorFitsSystemWindows(true)
+                    act.window.insetsController?.show(WindowInsets.Type.systemBars())
+                } else {
+                    @Suppress("DEPRECATION")
+                    act.window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+                }
+            }
         }
     }
     
@@ -168,21 +217,35 @@ fun PlayerScreen(
                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    if (isFullscreen) {
+                        showControls = !showControls
+                        if (showControls) scheduleHideControls()
+                    }
+                }
         )
         
-        // 顶部控制栏
-        Row(
-            modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(8.dp).align(Alignment.TopStart),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
-            }
-            val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: "第${currentEpisodeIndex + 1}集"
-            Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = { isFullscreen = !isFullscreen }) {
-                Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, contentDescription = "全屏", tint = Color.White)
+        // 控制覆盖层（全屏时点按显示/隐藏，竖屏始终显示）
+        val controlsVisible = !isFullscreen || showControls
+        if (controlsVisible) {
+            // 顶部控制栏
+            Row(
+                modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(8.dp).align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
+                }
+                val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: "第${currentEpisodeIndex + 1}集"
+                Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                IconButton(onClick = { isFullscreen = !isFullscreen }) {
+                    Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, contentDescription = "全屏", tint = Color.White)
+                }
             }
         }
         
@@ -222,8 +285,8 @@ fun PlayerScreen(
             }
         }
         
-        // 底部选集面板
-        if (!isFullscreen && playSources.isNotEmpty()) {
+        // 底部选集面板（全屏时随控制栏显示）
+        if (controlsVisible && playSources.isNotEmpty()) {
             Column(
                 modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)
                     .background(Color.Black.copy(alpha = 0.85f)).padding(8.dp)

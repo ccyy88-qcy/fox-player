@@ -59,24 +59,44 @@ class ZuidaMovieSource(
         } catch (e: Exception) { emptyList() }
     }
 
-    override suspend fun getCategories(): List<Category> = listOf(
-        Category("all", "全部", MovieType.MOVIE),
-        Category("movie", "电影", MovieType.MOVIE),
-        Category("tv", "电视剧", MovieType.TV),
-        Category("anime", "动漫", MovieType.ANIME),
-        Category("variety", "综艺", MovieType.VARIETY),
-    )
+    override suspend fun getCategories(): List<Category> {
+        return try {
+            val classes = fetchClassList()
+            val all = Category("all", "全部", MovieType.MOVIE)
+            val mapped = classes.map { (id, name) ->
+                val type = when {
+                    name.contains("剧") -> MovieType.TV
+                    name.contains("动漫") || name.contains("动画") -> MovieType.ANIME
+                    name.contains("综艺") -> MovieType.VARIETY
+                    else -> MovieType.MOVIE
+                }
+                Category(id.toString(), name, type)
+            }
+            listOf(all) + mapped
+        } catch (e: Exception) {
+            listOf(
+                Category("all", "全部", MovieType.MOVIE),
+            )
+        }
+    }
+
+    private suspend fun fetchClassList(): List<Pair<Int, String>> {
+        val json = apiCall("ac=list&pg=1")
+        val arr = json.optJSONArray("class") ?: return emptyList()
+        val result = mutableListOf<Pair<Int, String>>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val id = obj.optInt("type_id", 0)
+            val name = obj.optString("type_name", "")
+            if (id > 0 && name.isNotBlank()) result.add(id to name)
+        }
+        return result
+    }
 
     override suspend fun getMoviesByCategory(categoryId: String, page: Int): SearchResult {
         return try {
-            val typeFilter = when (categoryId) {
-                "movie" -> "&t=1"
-                "tv" -> "&t=2"
-                "anime" -> "&t=3"
-                "variety" -> "&t=4"
-                else -> ""
-            }
-            val json = apiCall("ac=list$typeFilter&pg=$page")
+            val typeParam = if (categoryId == "all") "" else "&t=$categoryId"
+            val json = apiCall("ac=list$typeParam&pg=$page")
             val list = json.optJSONArray("list") ?: return SearchResult(emptyList(), 1, page)
             val ids = mutableListOf<String>()
             for (i in 0 until list.length()) {
