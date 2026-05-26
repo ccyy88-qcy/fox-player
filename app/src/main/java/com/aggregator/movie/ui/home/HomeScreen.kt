@@ -129,7 +129,7 @@ fun HomeScreen(navController: NavHostController) {
                         Text(it, color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = {
-                            scope.launch {
+                            kotlinx.coroutines.MainScope().launch {
                                 isLoading = true; error = null
                                 repository.getHomeData().fold(
                                     onSuccess = { homeData = it; error = null },
