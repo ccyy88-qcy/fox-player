@@ -122,6 +122,58 @@ fun HomeScreen(navController: NavHostController) {
             }
         }
 
+        // ========== 数据源切换 ==========
+        item(key = "source_switcher") {
+            val repo = MovieApplication.instance.repository
+            val sm = repo.getSourceManager()
+            val sources = sm.getAllSources()
+            var activeIdx by remember { mutableIntStateOf(sm.activeSourceIndex) }
+
+            Surface(
+                color = DarkBackground,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.SwapHoriz, contentDescription = null,
+                        tint = TextSecondary, modifier = Modifier.size(14.dp))
+                    sources.forEachIndexed { index, source ->
+                        FilterChip(
+                            selected = index == activeIdx,
+                            onClick = {
+                                activeIdx = index
+                                sm.setActiveSource(index)
+                                // 触发数据刷新
+                                scope.launch {
+                                    isLoading = true
+                                    homeData = null
+                                    repository.getHomeData().fold(
+                                        onSuccess = { homeData = it },
+                                        onFailure = {}
+                                    )
+                                    isLoading = false
+                                }
+                            },
+                            label = { Text(source.sourceName, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = OrangePrimary,
+                                selectedLabelColor = Color.White,
+                                containerColor = DarkSurfaceVariant,
+                                labelColor = TextSecondary
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(30.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // ========== 加载状态 ==========
         if (isLoading) {
             item(key = "loading") {

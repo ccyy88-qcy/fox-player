@@ -13,14 +13,16 @@ class MovieRepository(
     private val sourceManager: SourceManager,
     private val dao: MovieDao
 ) {
+    /** 暴露给UI层用于数据源切换 */
+    fun getSourceManager() = sourceManager
     // ===== 影视数据 =====
     
     suspend fun getHomeData(): Result<HomeData> = runCatching {
-        sourceManager.getHomeData()
+        sourceManager.getActiveSource()?.getHomeData() ?: sourceManager.getHomeData()
     }
     
     suspend fun getCategories(): Result<List<Category>> = runCatching {
-        val all = sourceManager.getPrimarySource()?.getCategories() ?: emptyList()
+        val all = sourceManager.getActiveSource()?.getCategories() ?: emptyList()
         // 过滤掉不文明分类
         all.filterNot { cat ->
             cat.name.contains("伦理") || cat.name.contains("三级")
@@ -28,7 +30,7 @@ class MovieRepository(
     }
     
     suspend fun getMoviesByCategory(categoryId: String, page: Int): Result<SearchResult> = runCatching {
-        sourceManager.getPrimarySource()?.getMoviesByCategory(categoryId, page)
+        sourceManager.getActiveSource()?.getMoviesByCategory(categoryId, page)
             ?: SearchResult(emptyList(), 0, page)
     }
     
@@ -37,11 +39,16 @@ class MovieRepository(
     }
     
     suspend fun getMovieDetail(movieId: String, sourceId: String): Result<Movie?> = runCatching {
-        sourceManager.getPrimarySource()?.getMovieDetail(movieId)
+        // 根据 sourceId 选择对应源
+        val source = sourceManager.getAllSources().firstOrNull { it.sourceId == sourceId }
+            ?: sourceManager.getActiveSource()
+        source?.getMovieDetail(movieId)
     }
     
     suspend fun getPlaySources(movieId: String, sourceId: String): Result<List<PlaySource>> = runCatching {
-        sourceManager.getPrimarySource()?.getPlaySources(movieId) ?: emptyList()
+        val source = sourceManager.getAllSources().firstOrNull { it.sourceId == sourceId }
+            ?: sourceManager.getActiveSource()
+        source?.getPlaySources(movieId) ?: emptyList()
     }
     
     /**

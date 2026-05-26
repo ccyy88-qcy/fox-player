@@ -61,7 +61,24 @@ interface MovieSource {
  */
 class SourceManager(private val sources: List<MovieSource>) {
     
-    private val sortedSources = sources.sortedByDescending { it.priority }
+    val sortedSources = sources.sortedByDescending { it.priority }
+    
+    /** 当前活跃源索引 */
+    var activeSourceIndex = 0
+    
+    /** 切换活跃源 */
+    fun setActiveSource(index: Int) {
+        if (index in sortedSources.indices) activeSourceIndex = index
+    }
+    
+    /** 获取所有源 */
+    fun getAllSources(): List<MovieSource> = sortedSources
+    
+    /** 获取当前活跃源 */
+    fun getActiveSource(): MovieSource? = sortedSources.getOrNull(activeSourceIndex)
+    
+    /** 获取优先级最高的可用源（兜底） */
+    fun getPrimarySource(): MovieSource? = sortedSources.firstOrNull()
     
     /** 获取所有可用源 */
     suspend fun getAvailableSources(): List<MovieSource> = coroutineScope {
