@@ -32,6 +32,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavHostController
@@ -88,12 +89,24 @@ fun PlayerScreen(
         showControls = false
     }
 
-    // ExoPlayer
+    // ExoPlayer（大缓冲区减少卡顿）
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-            repeatMode = Player.REPEAT_MODE_OFF
-        }
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                30000,    // 最小缓冲: 30秒
+                90000,    // 最大缓冲: 90秒
+                3000,     // 开始播放前缓冲: 3秒
+                5000      // 卡顿后重新缓冲: 5秒
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .build()
+            .apply {
+                playWhenReady = true
+                repeatMode = Player.REPEAT_MODE_OFF
+            }
     }
 
     // 播放错误监听 → 自动换源
