@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,10 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,9 +27,13 @@ import coil.compose.AsyncImage
 import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.HomeData
 import com.aggregator.movie.data.model.Movie
+import com.aggregator.movie.data.model.WatchHistoryEntity
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+val categoryTabs = listOf("首页", "电影", "连续剧", "综艺", "动漫", "短剧")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,184 +41,250 @@ fun HomeScreen(navController: NavHostController) {
     val repository = MovieApplication.instance.repository
     var homeData by remember { mutableStateOf<HomeData?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-    
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var showContinueBar by remember { mutableStateOf(true) }
+    var continueHistory by remember { mutableStateOf<WatchHistoryEntity?>(null) }
+
+    // 加载数据
     LaunchedEffect(Unit) {
         isLoading = true
         repository.getHomeData().fold(
-            onSuccess = { homeData = it; error = null },
-            onFailure = { error = it.message }
+            onSuccess = { homeData = it },
+            onFailure = {}
         )
         isLoading = false
+
+        // 加载续看历史
+        repository.getWatchHistory().collect { history ->
+            continueHistory = history.firstOrNull()
+        }
     }
-    
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp)
-    ) {
-        // === 顶部搜索栏 ===
-        item {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+
+    Box(modifier = Modifier.fillMaxSize().background(LightBg)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            // === 顶部：搜索栏 ===
+            item {
+                Surface(
+                    color = LightSurface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 1.dp
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { 
-                            Text("搜片", color = TextSecondary, fontSize = 16.sp) 
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary)
-                        },
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        singleLine = true,
-                        shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (searchQuery.isNotBlank()) {
-                                navController.navigate(Screen.Search.createRoute(searchQuery))
-                            }
-                        }
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "搜索",
-                            tint = MaterialTheme.colorScheme.primary
+                        // 搜索框
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text("搜索名称 简介", color = TextGray, fontSize = 14.sp)
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = TextGray, modifier = Modifier.size(20.dp))
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(21.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = RedPrimary,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedContainerColor = LightBg,
+                                unfocusedContainerColor = LightBg,
+                                cursorColor = RedPrimary
+                            ),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
                         )
-                    }
-                }
-            }
-        }
-        
-        // === 加载状态 ===
-        if (isLoading) {
-            item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(300.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-        
-        // === 错误状态 ===
-        error?.let {
-            item {
-                Card(
-                    modifier = Modifier.padding(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(it, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        // 刷新
+                        IconButton(onClick = {
+                            isLoading = true
                             kotlinx.coroutines.MainScope().launch {
-                                isLoading = true; error = null
                                 repository.getHomeData().fold(
-                                    onSuccess = { homeData = it; error = null },
-                                    onFailure = { error = it.message }
+                                    onSuccess = { homeData = it },
+                                    onFailure = {}
                                 )
                                 isLoading = false
                             }
-                        }) {
-                            Text("重试")
+                        }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = TextGray, modifier = Modifier.size(20.dp))
+                        }
+                        // 历史
+                        IconButton(onClick = {
+                            navController.navigate(Screen.History.route)
+                        }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.History, contentDescription = "历史", tint = TextGray, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
             }
-        }
-        
-        // === Banner轮播 ===
-        homeData?.banners?.let { banners ->
-            if (banners.isNotEmpty()) {
-                item {
-                    BannerCarousel(banners = banners, navController = navController)
-                }
-            }
-        }
-        
-        // === 热门推荐 ===
-        homeData?.hotMovies?.let { movies ->
-            if (movies.isNotEmpty()) {
-                item {
-                    SectionHeader("热门推荐", "更多") {
-                        navController.navigate("category")
+
+            // === 分类标签栏 ===
+            item {
+                Surface(color = LightSurface) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(categoryTabs) { idx, name ->
+                            TabItem(
+                                name = name,
+                                selected = idx == selectedTab,
+                                onClick = { selectedTab = idx }
+                            )
+                        }
                     }
                 }
-                item {
-                    MovieRow(movies = movies, navController = navController)
-                }
             }
-        }
-        
-        // === 热播剧集 ===
-        homeData?.hotTv?.let { movies ->
-            if (movies.isNotEmpty()) {
-                item {
-                    SectionHeader("热播剧集", "更多") {
-                        navController.navigate("category")
+
+            // === Banner轮播 ===
+            homeData?.banners?.let { banners ->
+                if (banners.isNotEmpty()) {
+                    item {
+                        BannerCarousel(banners = banners, navController = navController)
                     }
                 }
-                item {
-                    MovieRow(movies = movies, navController = navController)
-                }
             }
-        }
-        
-        // === 热门动漫 ===
-        homeData?.hotAnime?.let { movies ->
-            if (movies.isNotEmpty()) {
-                item {
-                    SectionHeader("热门动漫", "更多") {
-                        navController.navigate("category")
+
+            // === 当前热播标题 ===
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 20.dp, bottom = 8.dp, end = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("当前热播", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                    TextButton(onClick = { navController.navigate("category") }) {
+                        Text("更多", color = RedPrimary, fontSize = 13.sp)
                     }
                 }
+            }
+
+            // === 双列网格卡片 ===
+            val displayMovies = homeData?.hotMovies?.take(10) ?: emptyList()
+            if (displayMovies.isNotEmpty()) {
                 item {
-                    MovieRow(movies = movies, navController = navController)
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                        displayMovies.chunked(2).forEach { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                row.forEach { movie ->
+                                    MovieCardLight(
+                                        movie = movie,
+                                        onClick = {
+                                            navController.navigate(Screen.Detail.createRoute(movie.id, movie.sourceId))
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (row.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+                    }
+                }
+            } else if (!isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        Text("暂无数据", color = TextGray, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+
+        // === 底部续看条 ===
+        if (showContinueBar && continueHistory != null) {
+            val h = continueHistory!!
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+                    .clickable {
+                        navController.navigate(Screen.Player.createRoute(h.movieId, h.sourceId, h.episodeIndex))
+                    },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = LightSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.PlayCircle, contentDescription = null, tint = RedPrimary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("继续观看", color = TextGray, fontSize = 11.sp)
+                        Text(
+                            "${h.title} - 第${h.episodeIndex + 1}集",
+                            color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = { showContinueBar = false }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "关闭", tint = TextGray, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }
     }
 }
 
+// ===== 子组件 =====
+
+@Composable
+fun TabItem(name: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            name,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) RedPrimary else TextDark
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .width(20.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(1.5.dp))
+                .background(if (selected) RedPrimary else Color.Transparent)
+        )
+    }
+}
+
 @Composable
 fun BannerCarousel(banners: List<Movie>, navController: NavHostController) {
     var currentIndex by remember { mutableIntStateOf(0) }
-    
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                if (banners.isNotEmpty()) {
-                    val movie = banners[currentIndex % banners.size]
-                    navController.navigate(Screen.Detail.createRoute(movie.id, movie.sourceId))
-                }
-            }
+
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 8.dp)
+        .height(180.dp)
+        .clip(RoundedCornerShape(12.dp))
+        .clickable {
+            val movie = banners[currentIndex % banners.size]
+            navController.navigate(Screen.Detail.createRoute(movie.id, movie.sourceId))
+        }
     ) {
         AsyncImage(
             model = banners[currentIndex % banners.size].coverUrl,
@@ -221,14 +292,15 @@ fun BannerCarousel(banners: List<Movie>, navController: NavHostController) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        // 渐变遮罩
+        // 底部渐变遮罩
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .height(80.dp)
+                .align(Alignment.BottomCenter)
                 .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                        startY = 100f
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                     )
                 )
         )
@@ -236,19 +308,15 @@ fun BannerCarousel(banners: List<Movie>, navController: NavHostController) {
         Text(
             text = banners[currentIndex % banners.size].title,
             color = Color.White,
-            fontSize = 16.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(12.dp)
+            modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)
         )
         // 指示器
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(12.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             repeat(minOf(banners.size, 5)) { idx ->
@@ -256,79 +324,33 @@ fun BannerCarousel(banners: List<Movie>, navController: NavHostController) {
                     modifier = Modifier
                         .size(if (idx == currentIndex % banners.size) 8.dp else 6.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(
-                            if (idx == currentIndex % banners.size) OrangePrimary 
-                            else Color.White.copy(alpha = 0.5f)
-                        )
+                        .background(if (idx == currentIndex % banners.size) Color.White else Color.White.copy(alpha = 0.4f))
                 )
             }
         }
     }
-    
+
     // 自动轮播
     LaunchedEffect(banners) {
         while (true) {
-            kotlinx.coroutines.delay(4000)
+            delay(4000)
             currentIndex = (currentIndex + 1) % banners.size
         }
     }
 }
 
 @Composable
-fun SectionHeader(title: String, actionText: String, onAction: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-        TextButton(onClick = onAction) {
-            Text(actionText, color = OrangePrimary, fontSize = 13.sp)
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = OrangePrimary,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun MovieRow(movies: List<Movie>, navController: NavHostController) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(movies) { movie ->
-            MovieCard(movie = movie, onClick = {
-                navController.navigate(Screen.Detail.createRoute(movie.id, movie.sourceId))
-            })
-        }
-    }
-}
-
-@Composable
-fun MovieCard(movie: Movie, onClick: () -> Unit) {
+fun MovieCardLight(movie: Movie, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
-            .width(120.dp)
-            .clickable(onClick = onClick)
+        modifier = modifier.clickable(onClick = onClick)
     ) {
-        // 封面
+        // 海报
         Box(
             modifier = Modifier
-                .width(120.dp)
-                .height(170.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceVariant)
+                .fillMaxWidth()
+                .aspectRatio(0.7f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(LightBg)
         ) {
             AsyncImage(
                 model = movie.coverUrl,
@@ -336,21 +358,32 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            // 评分标签
-            if (movie.score.isNotBlank()) {
+            // 状态标签（如"更新至12集"）
+            if (movie.score.isNotBlank() && movie.score != "0.0" && movie.score != "0") {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
+                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
                     shape = RoundedCornerShape(4.dp),
-                    color = OrangePrimary.copy(alpha = 0.9f)
+                    color = RedPrimary.copy(alpha = 0.85f)
                 ) {
                     Text(
-                        text = movie.score,
+                        text = "全${movie.score}集",
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            } else {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "更新中",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
             }
@@ -358,19 +391,12 @@ fun MovieCard(movie: Movie, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = movie.title,
-            color = TextPrimary,
-            fontSize = 12.sp,
+            color = TextDark,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Normal,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 16.sp
+            lineHeight = 17.sp
         )
-        if (movie.year.isNotBlank()) {
-            Text(
-                text = movie.year,
-                color = TextSecondary,
-                fontSize = 10.sp,
-                maxLines = 1
-            )
-        }
     }
 }
