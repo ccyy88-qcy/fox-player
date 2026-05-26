@@ -82,7 +82,7 @@ fun SearchScreen(navController: NavHostController, initialQuery: String = "") {
                         query = it
                         if (it.isNotBlank()) doSearch(it)
                     },
-                    placeholder = { Text("搜索影视…", color = TextSecondary) },
+                    placeholder = { Text("搜片", color = TextSecondary) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),

@@ -68,7 +68,7 @@ fun HomeScreen(navController: NavHostController) {
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { 
-                            Text("搜索影视…", color = TextSecondary, fontSize = 14.sp) 
+                            Text("搜片", color = TextSecondary, fontSize = 16.sp) 
                         },
                         leadingIcon = {
                             Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary)

@@ -243,7 +243,16 @@ fun PlayerScreen(
                 }
                 val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: "第${currentEpisodeIndex + 1}集"
                 Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = { isFullscreen = !isFullscreen }) {
+                IconButton(onClick = { 
+                    isFullscreen = !isFullscreen
+                    if (isFullscreen) {
+                        showControls = true
+                        scheduleHideControls()
+                    } else {
+                        hideControlsJob?.cancel()
+                        showControls = true
+                    }
+                }) {
                     Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, contentDescription = "全屏", tint = Color.White)
                 }
             }
@@ -288,8 +297,8 @@ fun PlayerScreen(
         // 底部选集面板（全屏时随控制栏显示）
         if (controlsVisible && playSources.isNotEmpty()) {
             Column(
-                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.85f)).padding(8.dp)
+                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(start=8.dp, end=8.dp, bottom=80.dp)
+                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(10.dp)).padding(10.dp)
             ) {
                 // 线路选择
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {

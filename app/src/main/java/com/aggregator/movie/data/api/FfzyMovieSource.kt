@@ -8,16 +8,15 @@ import org.json.JSONObject
 import java.net.URLEncoder
 
 /**
- * 最大资源网影视源 (api.zuidapi.com) - v2 简化版
+ * 非凡资源网影视源 (cj.ffzyapi.com) - 第二线路
  * 
- * 统一使用 ac=detail 获取完整数据（含封面）
- * 首页直接从列表ID映射到详情数据
+ * 标准MAC CMS协议，与zuida源互为备份
  */
-class ZuidaMovieSource(
-    override val sourceId: String = "zuida_01",
-    override val sourceName: String = "最大资源",
-    override val baseUrl: String = "https://api.zuidapi.com/api.php/provide/vod/",
-    override val priority: Int = 10,
+class FfzyMovieSource(
+    override val sourceId: String = "ffzy_02",
+    override val sourceName: String = "非凡资源",
+    override val baseUrl: String = "https://cj.ffzyapi.com/api.php/provide/vod/",
+    override val priority: Int = 5,
     private val client: okhttp3.OkHttpClient = HttpClientFactory.create()
 ) : MovieSource {
 
@@ -32,7 +31,6 @@ class ZuidaMovieSource(
                 val id = list.getJSONObject(i).optString("vod_id", "")
                 if (id.isNotBlank()) ids.add(id)
             }
-            // 批量获取详情（含封面）
             val movies = fetchDetailBatch(ids.take(20))
             val bannerIds = ids.take(5)
             val banners = if (bannerIds.isNotEmpty()) fetchDetailBatch(bannerIds) else emptyList()
@@ -62,7 +60,6 @@ class ZuidaMovieSource(
     override suspend fun getCategories(): List<Category> {
         return try {
             val classes = fetchClassList()
-            // 只返回叶节点子分类（排除父分类1-4，它们没有直接数据）
             val filtered = classes.filter { (id, _) -> id > 4 }
             val all = Category("all", "全部", MovieType.MOVIE)
             val mapped = filtered.map { (id, name) ->
@@ -76,9 +73,7 @@ class ZuidaMovieSource(
             }
             listOf(all) + mapped
         } catch (e: Exception) {
-            listOf(
-                Category("all", "全部", MovieType.MOVIE),
-            )
+            listOf(Category("all", "全部", MovieType.MOVIE))
         }
     }
 
@@ -147,7 +142,7 @@ class ZuidaMovieSource(
             playUrl.endsWith(".flv") -> VideoFormat.FLV
             else -> VideoFormat.M3U8
         }
-        return PlayUrl(url = playUrl, headers = mapOf("Referer" to "https://www.zuidapi.com/"), format = format)
+        return PlayUrl(url = playUrl, headers = mapOf("Referer" to "https://www.ffzyapi.com/"), format = format)
     }
 
     // ===== HTTP =====
@@ -195,9 +190,9 @@ class ZuidaMovieSource(
         val playUrlStr = item.optString("vod_play_url", "")
         if (playFrom.isBlank() || playUrlStr.isBlank()) return emptyList()
 
-        playFrom.split("\$\$\$").zip(playUrlStr.split("\$\$\$")) { name, urls ->
+        playFrom.split("\\$\\$\\$").zip(playUrlStr.split("\\$\\$\\$")) { name, urls ->
             val episodes = urls.split("#").mapIndexed { idx, ep ->
-                val parts = ep.split("\$", limit = 2)
+                val parts = ep.split("\\$", limit = 2)
                 Episode(idx, parts.getOrElse(0) { "第${idx + 1}集" }, parts.getOrElse(1) { "" })
             }.filter { it.url.isNotBlank() }
             if (episodes.isNotEmpty()) sources.add(PlaySource(name.ifBlank { "线路" }, episodes))

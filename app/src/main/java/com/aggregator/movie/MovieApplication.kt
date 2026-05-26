@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.aggregator.movie.data.api.MovieSource
 import com.aggregator.movie.data.api.SourceManager
 import com.aggregator.movie.data.api.ZuidaMovieSource
+import com.aggregator.movie.data.api.FfzyMovieSource
 import com.aggregator.movie.data.local.MovieDatabase
 import com.aggregator.movie.data.repository.MovieRepository
 
@@ -37,8 +38,11 @@ class MovieApplication : Application() {
             sourceName = "最大资源",
             priority = 10
         ),
-        // 如需添加更多源，在此追加:
-        // FreeMovieSource(sourceId = "free_02", sourceName = "备用源", priority = 5),
+        FfzyMovieSource(
+            sourceId = "ffzy_02",
+            sourceName = "非凡资源",
+            priority = 5
+        ),
     )
     
     companion object {
