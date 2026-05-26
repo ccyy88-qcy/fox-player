@@ -28,13 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.upstream.DefaultLoadControl
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavHostController
 import com.aggregator.movie.MovieApplication
@@ -95,21 +92,9 @@ fun PlayerScreen(
         showControls = false
     }
 
-    // ★ 修复：ExoPlayer 带大缓冲区配置（减少卡顿）
+    // ExoPlayer（使用默认缓冲区配置）
     val exoPlayer = remember {
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                50000,    // 最小缓冲: 50秒
-                120000,   // 最大缓冲: 120秒
-                2500,     // 缓冲开始前最小播放时长
-                5000      // 缓冲重新开始阈值
-            )
-            .setTargetBufferBytes(C.LENGTH_UNSET)
-            .setPrioritizeTimeOverSizeThresholds(false)
-            .build()
         ExoPlayer.Builder(context)
-            .setLoadControl(loadControl)
-            .setTrackSelector(DefaultTrackSelector(context))
             .build()
             .apply {
                 playWhenReady = true
