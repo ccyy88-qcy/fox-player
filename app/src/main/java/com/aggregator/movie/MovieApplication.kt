@@ -6,6 +6,7 @@ import com.aggregator.movie.data.api.MovieSource
 import com.aggregator.movie.data.api.SourceManager
 import com.aggregator.movie.data.api.ZuidaMovieSource
 import com.aggregator.movie.data.api.FfzyMovieSource
+import com.aggregator.movie.data.api.LinghuMovieSource
 import com.aggregator.movie.data.local.MovieDatabase
 import com.aggregator.movie.data.repository.MovieRepository
 
@@ -42,6 +43,11 @@ class MovieApplication : Application() {
             sourceId = "ffzy_02",
             sourceName = "非凡资源",
             priority = 5
+        ),
+        LinghuMovieSource(
+            sourceId = "linghu_03",
+            sourceName = "灵虎影视",
+            priority = 8
         ),
     )
     
