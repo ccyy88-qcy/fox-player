@@ -26,8 +26,13 @@ class SuboMovieSource(
         return try {
             val json = apiCall("ac=list&pg=1&h=24")
             val list = json.optJSONArray("list") ?: return HomeData()
-            // 直接用列表数据，不请求详情（加速）
-            val movies = parseListOnly(json)
+            val ids = mutableListOf<String>()
+            for (i in 0 until list.length()) {
+                val id = list.getJSONObject(i).optString("vod_id", "")
+                if (id.isNotBlank()) ids.add(id)
+            }
+            // 批量获取详情（封面图在detail里）
+            val movies = fetchDetailBatch(ids.take(20))
             val banners = movies.take(5)
 
             HomeData(
@@ -93,8 +98,13 @@ class SuboMovieSource(
             val typeParam = if (categoryId == "all") "" else "&t=$categoryId"
             val json = apiCall("ac=list$typeParam&pg=$page&h=24")
             val list = json.optJSONArray("list") ?: return SearchResult(emptyList(), 1, page)
-            // 直接用列表数据，不请求详情（加快速度）
-            val movies = parseListOnly(json)
+            val ids = mutableListOf<String>()
+            for (i in 0 until list.length()) {
+                val id = list.getJSONObject(i).optString("vod_id", "")
+                if (id.isNotBlank()) ids.add(id)
+            }
+            // 批量获取详情（封面图）
+            val movies = fetchDetailBatch(ids)
             SearchResult(movies, json.optInt("pagecount", 1), page)
         } catch (e: Exception) {
             SearchResult(emptyList(), 1, page)
