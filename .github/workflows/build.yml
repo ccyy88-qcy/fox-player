@@ -37,6 +37,7 @@ jobs:
         chmod +x gradlew
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export ANDROID_HOME=$HOME/android-sdk
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
         ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
     
     - name: Upload
