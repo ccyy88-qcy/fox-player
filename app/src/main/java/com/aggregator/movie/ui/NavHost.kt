@@ -17,6 +17,7 @@ import com.aggregator.movie.ui.detail.DetailScreen
 import com.aggregator.movie.ui.player.PlayerScreen
 import com.aggregator.movie.ui.collection.CollectionScreen
 import com.aggregator.movie.ui.history.HistoryScreen
+import com.aggregator.movie.ui.theme.*
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -48,41 +49,40 @@ fun MovieNavHost() {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
 
-    // 底部导航栏只在主页面显示
-    val showBottomBar = currentRoute in listOf(
-        Screen.Home.route,
-        "category",
-        Screen.Collection.route,
-        Screen.History.route
-    )
+    // 底部导航只在主页面显示
+    val mainPages = listOf("home", "category", "collection", "history")
+    val showBottomBar = currentRoute in mainPages
 
-    val bottomNavItems = listOf(
-        BottomNavItem("首页", Icons.Default.Home, Screen.Home.route),
-        BottomNavItem("分类", Icons.Default.Category, "category"),
-        BottomNavItem("收藏", Icons.Default.Favorite, Screen.Collection.route),
-        BottomNavItem("历史", Icons.Default.History, Screen.History.route)
-    )
+    val bottomNavItems = remember {
+        listOf(
+            BottomNavItem("首页", Icons.Default.Home, "home"),
+            BottomNavItem("分类", Icons.Default.Category, "category"),
+            BottomNavItem("收藏", Icons.Default.Favorite, "collection"),
+            BottomNavItem("历史", Icons.Default.History, "history")
+        )
+    }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    tonalElevation = 2.dp
                 ) {
                     bottomNavItems.forEach { item ->
+                        val isSelected = currentRoute == item.route ||
+                            (item.route == "category" && currentRoute?.startsWith("category") == true)
                         NavigationBarItem(
                             icon = { Icon(item.icon, contentDescription = item.label) },
                             label = { Text(item.label) },
-                            selected = currentRoute == item.route ||
-                                (item.route == "category" && currentRoute?.startsWith("category") == true),
+                            selected = isSelected,
                             onClick = {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        popUpTo(Screen.Home.route) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                // 直接导航，去掉守卫条件
+                                navController.navigate(item.route) {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -98,78 +98,62 @@ fun MovieNavHost() {
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = "home",
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable(Screen.Home.route) {
+            composable("home") {
                 HomeScreen(navController = navController)
             }
             composable("category") {
-                CategoryScreen(navController = navController)
+                com.aggregator.movie.ui.category.CategoryScreen(navController = navController)
             }
-            composable(Screen.Collection.route) {
+            composable("collection") {
                 CollectionScreen(navController = navController)
             }
-            composable(Screen.History.route) {
+            composable("history") {
                 HistoryScreen(navController = navController)
             }
             composable(
-                Screen.Search.route,
+                "search?query={query}",
                 arguments = listOf(navArgument("query") {
-                    type = NavType.StringType
-                    defaultValue = ""
+                    type = NavType.StringType; defaultValue = ""
                 })
-            ) { backStackEntry ->
-                val query = backStackEntry.arguments?.getString("query") ?: ""
-                SearchScreen(navController = navController, initialQuery = query)
+            ) { entry ->
+                SearchScreen(
+                    navController = navController,
+                    initialQuery = entry.arguments?.getString("query") ?: ""
+                )
             }
             composable(
-                Screen.Detail.route,
+                "detail/{movieId}/{sourceId}",
                 arguments = listOf(
                     navArgument("movieId") { type = NavType.StringType },
                     navArgument("sourceId") { type = NavType.StringType }
                 )
-            ) { backStackEntry ->
+            ) { entry ->
                 DetailScreen(
-                    movieId = backStackEntry.arguments?.getString("movieId") ?: "",
-                    sourceId = backStackEntry.arguments?.getString("sourceId") ?: "",
+                    movieId = entry.arguments?.getString("movieId") ?: "",
+                    sourceId = entry.arguments?.getString("sourceId") ?: "",
                     navController = navController
                 )
             }
-            // Player 路由同步注册（非懒加载），强制参数校验
             composable(
-                Screen.Player.route,
+                "player/{movieId}/{sourceId}/{episodeIndex}",
                 arguments = listOf(
                     navArgument("movieId") { type = NavType.StringType },
                     navArgument("sourceId") { type = NavType.StringType },
                     navArgument("episodeIndex") { type = NavType.IntType }
                 )
-            ) { backStackEntry ->
-                val pid = backStackEntry.arguments?.getString("movieId") ?: ""
-                val sid = backStackEntry.arguments?.getString("sourceId") ?: ""
-                val eid = backStackEntry.arguments?.getInt("episodeIndex") ?: 0
-                // 参数校验：如果 movieId 为空，不渲染播放器（防止空白页）
+            ) { entry ->
+                val pid = entry.arguments?.getString("movieId") ?: ""
+                val sid = entry.arguments?.getString("sourceId") ?: ""
+                val eid = entry.arguments?.getInt("episodeIndex") ?: 0
                 if (pid.isBlank()) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Text("参数错误：缺少影片ID")
-                    }
+                    Box(modifier = Modifier.fillMaxSize()) { Text("参数错误") }
                 } else {
-                    PlayerScreen(
-                        movieId = pid,
-                        sourceId = sid,
-                        episodeIndex = eid,
-                        navController = navController
-                    )
+                    PlayerScreen(movieId = pid, sourceId = sid, episodeIndex = eid, navController = navController)
                 }
             }
         }
     }
-}
-
-/**
- * 分类页面（简化版，实际可扩展为带筛选的页面）
- */
-@Composable
-fun CategoryScreen(navController: NavHostController) {
-    com.aggregator.movie.ui.category.CategoryScreen(navController = navController)
 }

@@ -55,7 +55,7 @@ fun HomeScreen(navController: NavHostController) {
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         // ========== 顶部搜索栏（高级版） ==========
-        item {
+        item(key = "search_bar") {
             Surface(
                 color = DarkSurface,
                 tonalElevation = 0.dp,
@@ -124,7 +124,7 @@ fun HomeScreen(navController: NavHostController) {
 
         // ========== 加载状态 ==========
         if (isLoading) {
-            item {
+            item(key = "loading") {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(300.dp),
                     contentAlignment = Alignment.Center
@@ -139,7 +139,7 @@ fun HomeScreen(navController: NavHostController) {
 
         // ========== 错误状态 ==========
         error?.let {
-            item {
+            item(key = "error_state") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
