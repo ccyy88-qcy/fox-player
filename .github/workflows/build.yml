@@ -3,8 +3,6 @@ name: Build APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -12,39 +10,40 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      run: |
+        git clone https://github.com/ccyy88-qcy/fox-player.git .
+        git checkout ${{ github.sha }}
     
     - name: Install JDK & Android SDK
       run: |
-        # JDK
         sudo apt-get update -qq
         sudo apt-get install -y -qq openjdk-17-jdk-headless 2>&1 | tail -3
         echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
         
-        # Android SDK
         mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk/cmdline-tools
-        curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        curl -sL -o tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
         unzip -q tools.zip && rm tools.zip
         mv cmdline-tools latest
         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
         
-        # Accept licenses + install platforms
         yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
         $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -5
     
-    - name: Build Debug APK
+    - name: Build
       run: |
         chmod +x gradlew
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export ANDROID_HOME=$HOME/android-sdk
         ./gradlew assembleDebug --no-daemon --stacktrace 2>&1
     
-    - name: Upload APK
+    - name: Upload
       if: success()
-      uses: actions/upload-artifact@v4
+      run: |
+        mv app/build/outputs/apk/debug/app-debug.apk /tmp/app-debug.apk
+    - uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: /tmp/app-debug.apk
