@@ -26,6 +26,7 @@ import com.aggregator.movie.MovieApplication
 import com.aggregator.movie.data.model.*
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun CategoryScreen(navController: NavHostController) {
@@ -82,7 +83,7 @@ fun CategoryScreen(navController: NavHostController) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(onClick = {
                         categories = emptyList(); error = null
-                        kotlinx.coroutines.MainScope().launch {
+                        scope.launch {
                             repository.getCategories().fold(
                                 onSuccess = { categories = it; if (it.isNotEmpty()) selectedCategory = it.first() },
                                 onFailure = { error = it.message }
