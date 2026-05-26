@@ -154,8 +154,6 @@ class SourceManager(private val sources: List<MovieSource>) {
         }
         return PlayUrl(url = url)
     }
-    
-    fun getPrimarySource(): MovieSource? = sortedSources.firstOrNull()
 }
 
 /**
