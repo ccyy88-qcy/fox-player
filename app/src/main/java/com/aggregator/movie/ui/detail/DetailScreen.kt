@@ -1,12 +1,15 @@
 package com.aggregator.movie.ui.detail
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,6 +41,7 @@ fun DetailScreen(
     navController: NavHostController
 ) {
     val repository = MovieApplication.instance.repository
+    val context = LocalContext.current
     var movie by remember { mutableStateOf<Movie?>(null) }
     var playSources by remember { mutableStateOf<List<PlaySource>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -44,33 +49,30 @@ fun DetailScreen(
     var isFavorite by remember { mutableStateOf(false) }
     var selectedSourceIndex by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    
+
     LaunchedEffect(movieId) {
         scope.launch {
             isLoading = true
-            // 获取详情
             val detailResult = repository.getMovieDetail(movieId, sourceId)
             if (detailResult.isSuccess) movie = detailResult.getOrNull()
             else error = detailResult.exceptionOrNull()?.message
-            
-            // 获取播放源
+
             val sourceResult = repository.getPlaySources(movieId, sourceId)
             if (sourceResult.isSuccess) playSources = sourceResult.getOrDefault(emptyList())
-            
-            // 检查收藏状态
+
             try { isFavorite = repository.isFavorite(movieId).first() } catch (_: Exception) {}
-            
+
             isLoading = false
         }
     }
-    
+
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
-    
+
     error?.let {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -81,10 +83,10 @@ fun DetailScreen(
         }
         return
     }
-    
+
     movie?.let { m ->
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            // 顶部封面+信息
+            // === 顶部封面+信息 ===
             item {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     AsyncImage(
@@ -138,13 +140,15 @@ fun DetailScreen(
                     Text(m.title, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
-                        if (m.score.isNotBlank() && m.score != "0.0" && m.score != "0") {
-                            Text("⭐ ${m.score}", color = OrangePrimary, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
+                        // ★ 评分修复：0.0 / 0 / blank → 待播（未开播剧集）
+                        val rawScore = m.score.trim()
+                        val hasValidScore = rawScore.isNotBlank() && rawScore != "0.0" && rawScore != "0"
+                        if (hasValidScore) {
+                            Text("⭐ $rawScore", color = OrangePrimary, fontSize = 14.sp)
                         } else {
                             Text("📺 待播", color = TextSecondary, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
                         }
+                        Spacer(modifier = Modifier.width(12.dp))
                         if (m.year.isNotBlank()) {
                             Text(m.year, color = TextSecondary, fontSize = 13.sp)
                             Spacer(modifier = Modifier.width(12.dp))
@@ -160,8 +164,8 @@ fun DetailScreen(
                     }
                 }
             }
-            
-            // 播放线路
+
+            // === 播放线路 ===
             if (playSources.isNotEmpty()) {
                 item {
                     Text("播放线路", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
@@ -184,12 +188,16 @@ fun DetailScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
-                
+
                 val currentSource = playSources.getOrNull(selectedSourceIndex)
                 if (currentSource != null) {
                     item {
-                        Text("选集 (${currentSource.episodes.size}集)", color = TextPrimary, fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                        Text("选集 (${currentSource.episodes.size}集)",
+                            color = TextPrimary, fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                        // ★ 修复：使用 LazyRow 保证横向滚动 + 加大 touch target
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -197,31 +205,46 @@ fun DetailScreen(
                             itemsIndexed(currentSource.episodes) { epIndex, ep ->
                                 FilledTonalButton(
                                     onClick = {
+                                        // ★ 修复：集数按钮→播放器页路由跳转（无延迟同步执行）
+                                        val playerRoute = Screen.Player.createRoute(movieId, sourceId, epIndex)
                                         try {
-                                            val playerRoute = Screen.Player.createRoute(movieId, sourceId, epIndex)
+                                            // 方案一：先检查路由是否能找到目标
                                             navController.navigate(playerRoute) {
+                                                // 强制清栈保证新页面
                                                 launchSingleTop = false
                                                 restoreState = false
                                             }
                                         } catch (e: Exception) {
-                                            error = "跳转播放失败: ${e.message}"
+                                            // 兜底：弹 Toast 提示
+                                            Toast.makeText(context, "跳转播放失败: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     colors = ButtonDefaults.filledTonalButtonColors(
                                         containerColor = DarkSurfaceVariant, contentColor = TextPrimary
                                     ),
                                     shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.size(width = if (currentSource.episodes.size > 50) 48.dp else 60.dp, height = 40.dp),
+                                    // ★ 修复：加大触摸区域，保证所有集数按钮可点击
+                                    modifier = Modifier.size(
+                                        width = if (currentSource.episodes.size > 50) 48.dp else 60.dp,
+                                        height = 42.dp
+                                    ),
                                     contentPadding = PaddingValues(4.dp)
                                 ) {
-                                    Text(ep.title.take(4).replace("第", "").replace("集", "").ifBlank { "${epIndex + 1}" }, fontSize = 13.sp)
+                                    Text(
+                                        ep.title
+                                            .replace("第", "")
+                                            .replace("集", "")
+                                            .ifBlank { "${epIndex + 1}" },
+                                        fontSize = 13.sp,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
-            
+
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }

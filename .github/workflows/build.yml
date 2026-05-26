@@ -26,18 +26,14 @@ jobs:
     
     - name: Accept licenses & install SDK components
       run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>/dev/null || true
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
     
-    - name: Install Gradle 8.5
-      run: |
-        wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip -O /tmp/gradle.zip
-        unzip -q /tmp/gradle.zip -d /opt/
-        ln -s /opt/gradle-8.5/bin/gradle /usr/local/bin/gradle
-        gradle --version
+    - name: Make gradlew executable
+      run: chmod +x gradlew
     
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
+      run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
     

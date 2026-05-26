@@ -30,8 +30,8 @@ sealed class Screen(val route: String) {
         fun createRoute(movieId: String, sourceId: String) = "detail/$movieId/$sourceId"
     }
     object Player : Screen("player/{movieId}/{sourceId}/{episodeIndex}") {
-        fun createRoute(movieId: String, sourceId: String, episodeIndex: Int) = 
-            "player/$movieId/$sourceId/$episodeIndex"
+        fun createRoute(movieId: String, sourceId: String, episodeIndex: Int) =
+            "player/${movieId}/${sourceId}/${episodeIndex}"
     }
 }
 
@@ -47,22 +47,22 @@ fun MovieNavHost() {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
-    
+
     // 底部导航栏只在主页面显示
     val showBottomBar = currentRoute in listOf(
-        Screen.Home.route, 
-        "category",  // 简化判断
-        Screen.Collection.route, 
+        Screen.Home.route,
+        "category",
+        Screen.Collection.route,
         Screen.History.route
     )
-    
+
     val bottomNavItems = listOf(
         BottomNavItem("首页", Icons.Default.Home, Screen.Home.route),
         BottomNavItem("分类", Icons.Default.Category, "category"),
         BottomNavItem("收藏", Icons.Default.Favorite, Screen.Collection.route),
         BottomNavItem("历史", Icons.Default.History, Screen.History.route)
     )
-    
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -74,7 +74,7 @@ fun MovieNavHost() {
                         NavigationBarItem(
                             icon = { Icon(item.icon, contentDescription = item.label) },
                             label = { Text(item.label) },
-                            selected = currentRoute == item.route || 
+                            selected = currentRoute == item.route ||
                                 (item.route == "category" && currentRoute?.startsWith("category") == true),
                             onClick = {
                                 if (currentRoute != item.route) {
@@ -115,7 +115,7 @@ fun MovieNavHost() {
             }
             composable(
                 Screen.Search.route,
-                arguments = listOf(navArgument("query") { 
+                arguments = listOf(navArgument("query") {
                     type = NavType.StringType
                     defaultValue = ""
                 })
@@ -136,6 +136,7 @@ fun MovieNavHost() {
                     navController = navController
                 )
             }
+            // Player 路由同步注册（非懒加载），强制参数校验
             composable(
                 Screen.Player.route,
                 arguments = listOf(
@@ -144,12 +145,22 @@ fun MovieNavHost() {
                     navArgument("episodeIndex") { type = NavType.IntType }
                 )
             ) { backStackEntry ->
-                PlayerScreen(
-                    movieId = backStackEntry.arguments?.getString("movieId") ?: "",
-                    sourceId = backStackEntry.arguments?.getString("sourceId") ?: "",
-                    episodeIndex = backStackEntry.arguments?.getInt("episodeIndex") ?: 0,
-                    navController = navController
-                )
+                val pid = backStackEntry.arguments?.getString("movieId") ?: ""
+                val sid = backStackEntry.arguments?.getString("sourceId") ?: ""
+                val eid = backStackEntry.arguments?.getInt("episodeIndex") ?: 0
+                // 参数校验：如果 movieId 为空，不渲染播放器（防止空白页）
+                if (pid.isBlank()) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Text("参数错误：缺少影片ID")
+                    }
+                } else {
+                    PlayerScreen(
+                        movieId = pid,
+                        sourceId = sid,
+                        episodeIndex = eid,
+                        navController = navController
+                    )
+                }
             }
         }
     }

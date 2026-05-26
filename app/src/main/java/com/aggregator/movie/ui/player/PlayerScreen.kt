@@ -38,6 +38,8 @@ import com.aggregator.movie.data.model.PlaySource
 import com.aggregator.movie.data.model.PlayUrl
 import com.aggregator.movie.ui.theme.OrangePrimary
 import kotlin.contracts.ExperimentalContracts
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,7 +52,7 @@ fun PlayerScreen(
     val repository = MovieApplication.instance.repository
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
+
     var playSources by remember { mutableStateOf<List<PlaySource>>(emptyList()) }
     var currentEpisodeIndex by remember { mutableIntStateOf(episodeIndex) }
     var currentPlayUrl by remember { mutableStateOf<PlayUrl?>(null) }
@@ -59,23 +61,23 @@ fun PlayerScreen(
     var playError by remember { mutableStateOf<String?>(null) }
     var isFullscreen by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
-    var hideControlsJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    
+    var hideControlsJob by remember { mutableStateOf<Job?>(null) }
+
     fun scheduleHideControls() {
         hideControlsJob?.cancel()
         hideControlsJob = scope.launch {
-            kotlinx.coroutines.delay(4000)
+            delay(4000)
             showControls = false
         }
     }
-    
+
     // ExoPlayer
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             playWhenReady = true
         }
     }
-    
+
     // 播放错误监听 → 自动换源
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
@@ -104,7 +106,7 @@ fun PlayerScreen(
             exoPlayer.release()
         }
     }
-    
+
     // 加载播放源
     LaunchedEffect(movieId) {
         repository.getPlaySources(movieId, sourceId).fold(
@@ -112,15 +114,15 @@ fun PlayerScreen(
             onFailure = { playError = "加载播放源失败" }
         )
     }
-    
+
     // 解析播放地址
     LaunchedEffect(currentEpisodeIndex, currentSourceIndex) {
         if (playSources.isEmpty()) return@LaunchedEffect
         val source = playSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
         val episode = source.episodes.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
-        
+
         playError = null
-        
+
         if (episode.url.endsWith(".mp4") || episode.url.endsWith(".m3u8") || episode.url.endsWith(".flv")) {
             currentPlayUrl = PlayUrl(url = episode.url, headers = mapOf("Referer" to "https://www.zuidapi.com/"))
             playExo(exoPlayer, currentPlayUrl!!)
@@ -138,7 +140,7 @@ fun PlayerScreen(
             )
         }
     }
-    
+
     // 保存观看历史
     DisposableEffect(Unit) {
         onDispose {
@@ -155,7 +157,7 @@ fun PlayerScreen(
             }
         }
     }
-    
+
     // 横屏控制 + 沉浸全屏
     DisposableEffect(isFullscreen) {
         val activity = context as? Activity
@@ -163,7 +165,6 @@ fun PlayerScreen(
             if (isFullscreen) {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                // 隐藏状态栏/导航栏（沉浸模式）
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     it.window.setDecorFitsSystemWindows(false)
                     it.window.insetsController?.hide(WindowInsets.Type.systemBars())
@@ -183,7 +184,6 @@ fun PlayerScreen(
             } else {
                 it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 it.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                // 恢复系统栏
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     it.window.setDecorFitsSystemWindows(true)
                     it.window.insetsController?.show(WindowInsets.Type.systemBars())
@@ -207,18 +207,21 @@ fun PlayerScreen(
             }
         }
     }
-    
-    // 安卓物理返回键处理
-    BackHandler {
+
+    // ★ 修复：安卓物理返回键完整处理
+    // 全屏→退出全屏→再按返回详情页
+    BackHandler(enabled = true) {
         if (isFullscreen) {
+            // 全屏模式 → 退出全屏
             isFullscreen = false
             hideControlsJob?.cancel()
             showControls = true
         } else {
+            // 竖屏模式 → 返回上一页
             navController.popBackStack()
         }
     }
-    
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // 播放器
         AndroidView(
@@ -241,8 +244,8 @@ fun PlayerScreen(
                     }
                 }
         )
-        
-        // 控制覆盖层（全屏时点按显示/隐藏，竖屏始终显示）
+
+        // 控制覆盖层
         val controlsVisible = !isFullscreen || showControls
         if (controlsVisible) {
             // 顶部控制栏
@@ -250,12 +253,20 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(8.dp).align(Alignment.TopStart),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { navController.popBackStack() }) {
+                IconButton(onClick = {
+                    if (isFullscreen) {
+                        isFullscreen = false
+                        hideControlsJob?.cancel()
+                        showControls = true
+                    } else {
+                        navController.popBackStack()
+                    }
+                }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
                 }
                 val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: "第${currentEpisodeIndex + 1}集"
                 Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = { 
+                IconButton(onClick = {
                     isFullscreen = !isFullscreen
                     if (isFullscreen) {
                         showControls = true
@@ -269,7 +280,7 @@ fun PlayerScreen(
                 }
             }
         }
-        
+
         // 换源提示
         if (isChangingSource) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -280,7 +291,7 @@ fun PlayerScreen(
                 }
             }
         }
-        
+
         // 错误提示
         if (playError != null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -305,8 +316,8 @@ fun PlayerScreen(
                 }
             }
         }
-        
-        // 底部选集面板（全屏时随控制栏显示）
+
+        // 底部选集面板
         if (controlsVisible && playSources.isNotEmpty()) {
             Column(
                 modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(start=8.dp, end=8.dp, bottom=80.dp)
@@ -339,16 +350,17 @@ fun PlayerScreen(
                                 ),
                                 shape = RoundedCornerShape(6.dp),
                                 modifier = Modifier.size(
-                                    width = if (ep.title.length > 4) 60.dp else 48.dp, 
+                                    width = if (ep.title.length > 4) 60.dp else 48.dp,
                                     height = 36.dp
                                 ),
                                 contentPadding = PaddingValues(2.dp)
-                            ) { 
+                            ) {
                                 Text(
-                                    ep.title.replace("第", "").replace("集", "").ifBlank { "${idx + 1}" }, 
+                                    ep.title.replace("第", "").replace("集", "").ifBlank { "${idx + 1}" },
                                     fontSize = 11.sp
-                                ) 
+                                )
                             }
+                        }
                     }
                 }
             }
