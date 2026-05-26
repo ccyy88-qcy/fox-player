@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,17 +44,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
-/**
- * 播放器页面 v3
- *
- * 修复:
- * 1. 控制栏横竖屏统一自动隐藏+点按唤起（原bug:竖屏永远显示遮挡视频）
- * 2. 断点续传 SharedPreferences 持久化
- * 3. 播放中每5秒保存进度，>95%自动清空
- * 4. ExoPlayer 加大缓冲区减少卡顿
- * 5. 进入播放器时自动恢复上次播放位置
- */
 @Composable
 fun PlayerScreen(
     movieId: String,
@@ -74,11 +66,15 @@ fun PlayerScreen(
     var isFullscreen by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
     var hideControlsJob by remember { mutableStateOf<Job?>(null) }
+    // 播放进度
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var isSeeking by remember { mutableStateOf(false) } // 拖拽中不隐藏控制栏
 
-    // SharedPreferences 用于每集断点续传
     val prefs = remember { context.getSharedPreferences("player_progress", Context.MODE_PRIVATE) }
 
     fun scheduleHideControls() {
+        if (isSeeking) return // 拖拽中不隐藏
         hideControlsJob?.cancel()
         hideControlsJob = scope.launch {
             delay(4000)
@@ -86,20 +82,18 @@ fun PlayerScreen(
         }
     }
 
-    // 初始1秒后自动隐藏控制栏
+    // 初始1秒后自动隐藏
     LaunchedEffect(Unit) {
         delay(1000)
         showControls = false
     }
 
-    // ExoPlayer（使用默认缓冲区配置）
+    // ExoPlayer
     val exoPlayer = remember {
-        ExoPlayer.Builder(context)
-            .build()
-            .apply {
-                playWhenReady = true
-                repeatMode = Player.REPEAT_MODE_OFF
-            }
+        ExoPlayer.Builder(context).build().apply {
+            playWhenReady = true
+            repeatMode = Player.REPEAT_MODE_OFF
+        }
     }
 
     // 播放错误监听 → 自动换源
@@ -111,8 +105,7 @@ fun PlayerScreen(
                     isChangingSource = true
                     tryNextSource(playSources, currentSourceIndex, currentEpisodeIndex, repository,
                         onSuccess = { newUrl, newIdx ->
-                            currentPlayUrl = newUrl
-                            currentSourceIndex = newIdx
+                            currentPlayUrl = newUrl; currentSourceIndex = newIdx
                             playExo(exoPlayer, newUrl)
                         },
                         onAllFailed = { playError = "所有线路均无法播放" }
@@ -140,13 +133,11 @@ fun PlayerScreen(
         )
     }
 
-    // ★ 修复：解析播放地址 + 断点续传恢复
-    // 依赖 playSources.size 解决首次加载时 playSources 为空导致视频不播放的bug
+    // 解析播放地址 + 断点续传
     LaunchedEffect(currentEpisodeIndex, currentSourceIndex, playSources.size) {
         if (playSources.isEmpty()) return@LaunchedEffect
         val source = playSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
         val episode = source.episodes.getOrNull(currentEpisodeIndex) ?: return@LaunchedEffect
-
         playError = null
 
         if (episode.url.endsWith(".mp4") || episode.url.endsWith(".m3u8") || episode.url.endsWith(".flv")) {
@@ -166,33 +157,38 @@ fun PlayerScreen(
             )
         }
 
-        // ★ 修复：尝试恢复断点续传位置
         val savedPos = prefs.getLong("play_progress_${movieId}_${currentEpisodeIndex}", -1L)
         if (savedPos > 0) {
-            delay(300) // 等播放器准备好
+            delay(300)
             exoPlayer.seekTo(savedPos)
         }
     }
 
-    // ★ 修复：播放中每5秒保存进度（实时断点续传）
-    LaunchedEffect(currentEpisodeIndex) {
+    // ★ 播放进度实时更新（每200ms）
+    LaunchedEffect(Unit) {
         while (isActive) {
-            delay(5000)
-            if (exoPlayer.isPlaying) {
-                savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
-            }
+            currentPosition = exoPlayer.currentPosition
+            duration = exoPlayer.duration.coerceAtLeast(0)
+            delay(200)
         }
     }
 
-    // 保存观看历史（Room）
+    // 每5秒保存进度
+    LaunchedEffect(currentEpisodeIndex) {
+        while (isActive) {
+            delay(5000)
+            if (exoPlayer.isPlaying) savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
+        }
+    }
+
+    // 保存历史
     DisposableEffect(currentEpisodeIndex) {
         onDispose {
             scope.launch {
                 savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
-                val pos = exoPlayer.currentPosition
-                val dur = exoPlayer.duration.coerceAtLeast(0)
+                val pos = exoPlayer.currentPosition; val dur = exoPlayer.duration.coerceAtLeast(0)
                 if (dur > 0) {
-                    val movie = try { repository.getMovieDetail(movieId, sourceId).getOrNull() } catch (e: Exception) { null }
+                    val movie = try { repository.getMovieDetail(movieId, sourceId).getOrNull() } catch (_: Exception) { null }
                     movie?.let {
                         val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: ""
                         repository.saveHistory(it, currentEpisodeIndex, epTitle, pos, dur)
@@ -202,7 +198,7 @@ fun PlayerScreen(
         }
     }
 
-    // 横屏控制 + 沉浸全屏
+    // 横屏控制
     DisposableEffect(isFullscreen) {
         val activity = context as? Activity
         activity?.let {
@@ -212,17 +208,13 @@ fun PlayerScreen(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     it.window.setDecorFitsSystemWindows(false)
                     it.window.insetsController?.hide(WindowInsets.Type.systemBars())
-                    it.window.insetsController?.systemBarsBehavior =
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    it.window.insetsController?.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 } else {
                     @Suppress("DEPRECATION")
                     it.window.decorView.systemUiVisibility = (
-                        android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
-                        android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                        android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                        android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     )
                 }
             } else {
@@ -252,26 +244,25 @@ fun PlayerScreen(
         }
     }
 
-    // 物理返回键：全屏→退出全屏→返回详情
+    // 物理返回键
     BackHandler(enabled = true) {
         if (isFullscreen) {
-            isFullscreen = false
-            hideControlsJob?.cancel()
-            showControls = true
+            isFullscreen = false; hideControlsJob?.cancel(); showControls = true
         } else {
-            savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
-            navController.popBackStack()
+            savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer); navController.popBackStack()
         }
     }
 
-    // ===== UI 布局 =====
+    // ============================
+    // UI 布局
+    // ============================
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // 播放器（填满全屏，无遮挡）
+        // 播放器
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
-                    useController = false  // 用自定义控制栏
+                    useController = false
                     setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 }
             },
@@ -281,61 +272,132 @@ fun PlayerScreen(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    // ★ 修复：横竖屏都切换控制栏
                     showControls = !showControls
-                    if (showControls) scheduleHideControls()
+                    if (showControls) { isSeeking = false; scheduleHideControls() }
                 }
         )
 
-        // ★ 修复：控制栏统一用 showControls 控制，不再区分横竖屏
+        // 控制层（showControls 统一控制，横竖屏一致）
         if (showControls) {
-            // 顶部控制栏（半透明）
+            // === 顶部：返回+标题+全屏 ===
             Row(
                 modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.6f))
                     .padding(horizontal = 4.dp, vertical = 2.dp).align(Alignment.TopStart),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
-                    if (isFullscreen) {
-                        isFullscreen = false
-                        hideControlsJob?.cancel()
-                        showControls = true
-                    } else {
-                        savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
-                        navController.popBackStack()
-                    }
-                }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
-                }
+                    if (isFullscreen) { isFullscreen = false; hideControlsJob?.cancel(); showControls = true }
+                    else { savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer); navController.popBackStack() }
+                }) { Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White) }
                 val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title
                     ?: "第${currentEpisodeIndex + 1}集"
-                Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f))
+                Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     isFullscreen = !isFullscreen
                     if (isFullscreen) { showControls = true; scheduleHideControls() }
                     else { hideControlsJob?.cancel(); showControls = true }
-                }) {
-                    Icon(
-                        if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                        contentDescription = "全屏", tint = Color.White
+                }) { Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, tint = Color.White, contentDescription = "全屏") }
+            }
+
+            // === 底部：播放控制栏 + 选集 ===
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                // ---- 播放进度条 ----
+                val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 播放/暂停
+                    IconButton(onClick = {
+                        if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+                        scheduleHideControls()
+                    }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            if (exoPlayer.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (exoPlayer.isPlaying) "暂停" else "播放",
+                            tint = Color.White, modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    // 当前时间
+                    Text(formatTime(currentPosition), color = Color.White, fontSize = 11.sp,
+                        modifier = Modifier.width(42.dp), textAlign = TextAlign.Center)
+                    // 进度条
+                    Slider(
+                        value = if (duration > 0) progress else 0f,
+                        onValueChange = { fraction ->
+                            isSeeking = true
+                            val seekPos = (fraction * duration).toLong()
+                            exoPlayer.seekTo(seekPos)
+                        },
+                        onValueChangeFinished = {
+                            isSeeking = false
+                            scheduleHideControls()
+                        },
+                        modifier = Modifier.weight(1f).height(28.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = OrangePrimary,
+                            activeTrackColor = OrangePrimary,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        )
                     )
+                    // 总时长
+                    Text(formatTime(duration), color = Color.White, fontSize = 11.sp,
+                        modifier = Modifier.width(42.dp), textAlign = TextAlign.Center)
+                }
+
+                // ---- 线路选择 ----
+                if (playSources.size > 1) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        itemsIndexed(playSources) { idx, source ->
+                            FilterChip(
+                                selected = idx == currentSourceIndex,
+                                onClick = { currentSourceIndex = idx },
+                                label = { Text(source.name, fontSize = 11.sp, maxLines = 1) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = OrangePrimary, selectedLabelColor = Color.White,
+                                    containerColor = Color.DarkGray, labelColor = Color.LightGray
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // ---- 集数选择 ----
+                val curSrc = playSources.getOrNull(currentSourceIndex)
+                if (curSrc != null && curSrc.episodes.size > 1) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        itemsIndexed(curSrc.episodes) { idx, ep ->
+                            FilledTonalButton(
+                                onClick = { currentEpisodeIndex = idx },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (idx == currentEpisodeIndex) OrangePrimary else Color.DarkGray,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.size(width = if (ep.title.length > 4) 60.dp else 48.dp, height = 34.dp),
+                                contentPadding = PaddingValues(2.dp)
+                            ) { Text(ep.title.replace("第", "").replace("集", "").ifBlank { "${idx + 1}" }, fontSize = 11.sp) }
+                        }
+                    }
                 }
             }
         }
 
-        // 缓冲提示
+        // 缓冲中
         if (exoPlayer.playbackState == Player.STATE_BUFFERING && !isChangingSource) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(40.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text("缓冲中…", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                 }
             }
         }
 
-        // 换源提示
+        // 换源中
         if (isChangingSource) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -360,65 +422,11 @@ fun PlayerScreen(
                                 isChangingSource = true
                                 tryNextSource(playSources, currentSourceIndex, currentEpisodeIndex, repository,
                                     onSuccess = { url, idx -> currentPlayUrl = url; currentSourceIndex = idx; playExo(exoPlayer, url) },
-                                    onAllFailed = {}
-                                )
+                                    onAllFailed = {})
                                 isChangingSource = false
                             }
                         }, colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) { Text("换源") }
                         Button(onClick = { navController.popBackStack() }) { Text("返回", color = Color.Black) }
-                    }
-                }
-            }
-        }
-
-        // ★ 修复：底部控制面板（选集+线路），只在控制栏显示时展示
-        if (showControls && playSources.isNotEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
-                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(10.dp))
-                    .padding(8.dp)
-            ) {
-                // 线路选择
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
-                    itemsIndexed(playSources) { idx, source ->
-                        FilterChip(
-                            selected = idx == currentSourceIndex,
-                            onClick = { currentSourceIndex = idx },
-                            label = { Text(source.name, fontSize = 11.sp, maxLines = 1) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OrangePrimary, selectedLabelColor = Color.White,
-                                containerColor = Color.DarkGray, labelColor = Color.LightGray
-                            )
-                        )
-                    }
-                }
-                // 集数选择
-                val curSrc = playSources.getOrNull(currentSourceIndex)
-                if (curSrc != null && curSrc.episodes.size > 1) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        itemsIndexed(curSrc.episodes) { idx, ep ->
-                            FilledTonalButton(
-                                onClick = { currentEpisodeIndex = idx },
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (idx == currentEpisodeIndex) OrangePrimary else Color.DarkGray,
-                                    contentColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.size(
-                                    width = if (ep.title.length > 4) 60.dp else 48.dp,
-                                    height = 36.dp
-                                ),
-                                contentPadding = PaddingValues(2.dp)
-                            ) {
-                                Text(
-                                    ep.title.replace("第", "").replace("集", "").ifBlank { "${idx + 1}" },
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -428,24 +436,20 @@ fun PlayerScreen(
 
 // ===== 工具函数 =====
 
-/**
- * ★ 修复：保存播放位置到 SharedPreferences
- * 每集独立存储，>95%自动清空（视为已看完）
- */
+private fun formatTime(ms: Long): String {
+    if (ms <= 0) return "00:00"
+    val total = ms / 1000
+    return String.format(Locale.CHINA, "%02d:%02d", total / 60, total % 60)
+}
+
 private fun savePosition(prefs: android.content.SharedPreferences, movieId: String, episodeIdx: Int, player: ExoPlayer) {
     try {
-        val pos = player.currentPosition
-        val dur = player.duration.coerceAtLeast(0)
+        val pos = player.currentPosition; val dur = player.duration.coerceAtLeast(0)
         if (dur > 0) {
             val key = "play_progress_${movieId}_${episodeIdx}"
             val ratio = pos.toFloat() / dur.toFloat()
-            if (ratio >= 0.95f) {
-                // 看完95%以上，清空记录，下次从头播
-                prefs.edit().remove(key).apply()
-            } else if (ratio > 0.02f && pos > 3000) {
-                // 播了超过3秒才存（避免误存0位置）
-                prefs.edit().putLong(key, pos).apply()
-            }
+            if (ratio >= 0.95f) prefs.edit().remove(key).apply()
+            else if (ratio > 0.02f && pos > 3000) prefs.edit().putLong(key, pos).apply()
         }
     } catch (_: Exception) {}
 }
@@ -464,20 +468,14 @@ private fun playExo(player: ExoPlayer, playUrl: PlayUrl) {
 
 @OptIn(ExperimentalContracts::class)
 private suspend fun tryNextSource(
-    playSources: List<PlaySource>,
-    currentSourceIndex: Int,
-    episodeIndex: Int,
+    playSources: List<PlaySource>, currentSourceIndex: Int, episodeIndex: Int,
     repository: com.aggregator.movie.data.repository.MovieRepository,
-    onSuccess: (PlayUrl, Int) -> Unit,
-    onAllFailed: () -> Unit
+    onSuccess: (PlayUrl, Int) -> Unit, onAllFailed: () -> Unit
 ) {
     for (i in 1 until playSources.size) {
         val nextIdx = (currentSourceIndex + i) % playSources.size
         val result = repository.resolvePlayUrl(playSources, episodeIndex)
-        if (result.isSuccess) {
-            onSuccess(result.getOrThrow(), nextIdx)
-            return
-        }
+        if (result.isSuccess) { onSuccess(result.getOrThrow(), nextIdx); return }
     }
     onAllFailed()
 }
