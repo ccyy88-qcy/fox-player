@@ -72,28 +72,7 @@ fun CategoryScreen(navController: NavHostController) {
             }
         }
 
-        // 分类标签（空时显示提示）
-        if (categories.isEmpty() && !isLoading && error == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Category, contentDescription = null, tint = TextLightGray, modifier = Modifier.size(48.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("暂无分类数据", color = TextGray, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(onClick = {
-                        categories = emptyList(); error = null
-                        kotlinx.coroutines.MainScope().launch {
-                            repository.getCategories().fold(
-                                onSuccess = { categories = it; if (it.isNotEmpty()) selectedCategory = it.first() },
-                                onFailure = { error = it.message }
-                            )
-                        }
-                    }) { Text("重试") }
-                }
-            }
-            return@Column
-        }
-
+        // 分类标签
         if (categories.isNotEmpty()) {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
