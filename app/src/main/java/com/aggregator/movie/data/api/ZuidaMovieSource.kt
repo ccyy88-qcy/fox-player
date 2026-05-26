@@ -25,7 +25,8 @@ class ZuidaMovieSource(
 
     override suspend fun getHomeData(): HomeData {
         return try {
-            val json = apiCall("ac=list&pg=1")
+            // h=24 只返回最近24小时更新的，速度从6秒降到1秒
+            val json = apiCall("ac=list&pg=1&h=24")
             val list = json.optJSONArray("list") ?: return HomeData()
             val ids = mutableListOf<String>()
             for (i in 0 until list.length()) {
@@ -33,16 +34,16 @@ class ZuidaMovieSource(
                 if (id.isNotBlank()) ids.add(id)
             }
             // 批量获取详情（含封面）
-            val movies = fetchDetailBatch(ids.take(20))
-            val bannerIds = ids.take(5)
+            val movies = fetchDetailBatch(ids.take(10))
+            val bannerIds = ids.take(3)
             val banners = if (bannerIds.isNotEmpty()) fetchDetailBatch(bannerIds) else emptyList()
 
             HomeData(
                 banners = banners,
                 hotMovies = movies.take(10),
-                hotTv = movies.filter { it.genre.contains("剧") }.take(10),
-                hotAnime = movies.filter { it.genre.contains("动漫") || it.genre.contains("动画") }.take(10),
-                latestMovies = movies.takeLast(10)
+                hotTv = movies.filter { it.genre.contains("剧") }.take(6),
+                hotAnime = movies.filter { it.genre.contains("动漫") || it.genre.contains("动画") }.take(6),
+                latestMovies = movies.take(10)
             )
         } catch (e: Exception) { 
             e.printStackTrace()
@@ -99,7 +100,7 @@ class ZuidaMovieSource(
     override suspend fun getMoviesByCategory(categoryId: String, page: Int): SearchResult {
         return try {
             val typeParam = if (categoryId == "all") "" else "&t=$categoryId"
-            val json = apiCall("ac=list$typeParam&pg=$page")
+            val json = apiCall("ac=list$typeParam&pg=$page&h=24")
             val list = json.optJSONArray("list") ?: return SearchResult(emptyList(), 1, page)
             val ids = mutableListOf<String>()
             for (i in 0 until list.length()) {

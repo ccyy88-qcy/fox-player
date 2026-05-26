@@ -24,7 +24,7 @@ class FfzyMovieSource(
 
     override suspend fun getHomeData(): HomeData {
         return try {
-            val json = apiCall("ac=list&pg=1")
+            val json = apiCall("ac=list&pg=1&h=24")
             val list = json.optJSONArray("list") ?: return HomeData()
             val ids = mutableListOf<String>()
             for (i in 0 until list.length()) {
@@ -93,7 +93,7 @@ class FfzyMovieSource(
     override suspend fun getMoviesByCategory(categoryId: String, page: Int): SearchResult {
         return try {
             val typeParam = if (categoryId == "all") "" else "&t=$categoryId"
-            val json = apiCall("ac=list$typeParam&pg=$page")
+            val json = apiCall("ac=list$typeParam&pg=$page&h=24")
             val list = json.optJSONArray("list") ?: return SearchResult(emptyList(), 1, page)
             val ids = mutableListOf<String>()
             for (i in 0 until list.length()) {
