@@ -1,6 +1,7 @@
 package com.aggregator.movie.ui.player
 
 import android.app.Activity
+import android.content.Context
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.Build
@@ -27,10 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultLoadControl
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavHostController
 import com.aggregator.movie.MovieApplication
@@ -40,8 +44,19 @@ import com.aggregator.movie.ui.theme.OrangePrimary
 import kotlin.contracts.ExperimentalContracts
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/**
+ * 播放器页面 v3
+ *
+ * 修复:
+ * 1. 控制栏横竖屏统一自动隐藏+点按唤起（原bug:竖屏永远显示遮挡视频）
+ * 2. 断点续传 SharedPreferences 持久化
+ * 3. 播放中每5秒保存进度，>95%自动清空
+ * 4. ExoPlayer 加大缓冲区减少卡顿
+ * 5. 进入播放器时自动恢复上次播放位置
+ */
 @Composable
 fun PlayerScreen(
     movieId: String,
@@ -63,6 +78,9 @@ fun PlayerScreen(
     var showControls by remember { mutableStateOf(true) }
     var hideControlsJob by remember { mutableStateOf<Job?>(null) }
 
+    // SharedPreferences 用于每集断点续传
+    val prefs = remember { context.getSharedPreferences("player_progress", Context.MODE_PRIVATE) }
+
     fun scheduleHideControls() {
         hideControlsJob?.cancel()
         hideControlsJob = scope.launch {
@@ -71,11 +89,32 @@ fun PlayerScreen(
         }
     }
 
-    // ExoPlayer
+    // 初始1秒后自动隐藏控制栏
+    LaunchedEffect(Unit) {
+        delay(1000)
+        showControls = false
+    }
+
+    // ★ 修复：ExoPlayer 带大缓冲区配置（减少卡顿）
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-        }
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                50000,    // 最小缓冲: 50秒
+                120000,   // 最大缓冲: 120秒
+                2500,     // 缓冲开始前最小播放时长
+                5000      // 缓冲重新开始阈值
+            )
+            .setTargetBufferBytes(C.LENGTH_UNSET)
+            .setPrioritizeTimeOverSizeThresholds(false)
+            .build()
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .setTrackSelector(DefaultTrackSelector(context))
+            .build()
+            .apply {
+                playWhenReady = true
+                repeatMode = Player.REPEAT_MODE_OFF
+            }
     }
 
     // 播放错误监听 → 自动换源
@@ -102,6 +141,7 @@ fun PlayerScreen(
         }
         exoPlayer.addListener(listener)
         onDispose {
+            savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
             exoPlayer.removeListener(listener)
             exoPlayer.release()
         }
@@ -115,7 +155,7 @@ fun PlayerScreen(
         )
     }
 
-    // 解析播放地址
+    // ★ 修复：解析播放地址 + 断点续传恢复
     LaunchedEffect(currentEpisodeIndex, currentSourceIndex) {
         if (playSources.isEmpty()) return@LaunchedEffect
         val source = playSources.getOrNull(currentSourceIndex) ?: return@LaunchedEffect
@@ -139,12 +179,30 @@ fun PlayerScreen(
                 }
             )
         }
+
+        // ★ 修复：尝试恢复断点续传位置
+        val savedPos = prefs.getLong("play_progress_${movieId}_${currentEpisodeIndex}", -1L)
+        if (savedPos > 0) {
+            delay(300) // 等播放器准备好
+            exoPlayer.seekTo(savedPos)
+        }
     }
 
-    // 保存观看历史
-    DisposableEffect(Unit) {
+    // ★ 修复：播放中每5秒保存进度（实时断点续传）
+    LaunchedEffect(currentEpisodeIndex) {
+        while (isActive) {
+            delay(5000)
+            if (exoPlayer.isPlaying) {
+                savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
+            }
+        }
+    }
+
+    // 保存观看历史（Room）
+    DisposableEffect(currentEpisodeIndex) {
         onDispose {
             scope.launch {
+                savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
                 val pos = exoPlayer.currentPosition
                 val dur = exoPlayer.duration.coerceAtLeast(0)
                 if (dur > 0) {
@@ -208,27 +266,26 @@ fun PlayerScreen(
         }
     }
 
-    // ★ 修复：安卓物理返回键完整处理
-    // 全屏→退出全屏→再按返回详情页
+    // 物理返回键：全屏→退出全屏→返回详情
     BackHandler(enabled = true) {
         if (isFullscreen) {
-            // 全屏模式 → 退出全屏
             isFullscreen = false
             hideControlsJob?.cancel()
             showControls = true
         } else {
-            // 竖屏模式 → 返回上一页
+            savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
             navController.popBackStack()
         }
     }
 
+    // ===== UI 布局 =====
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // 播放器
+        // 播放器（填满全屏，无遮挡）
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
-                    useController = true
+                    useController = false  // 用自定义控制栏
                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 }
             },
@@ -238,19 +295,18 @@ fun PlayerScreen(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    if (isFullscreen) {
-                        showControls = !showControls
-                        if (showControls) scheduleHideControls()
-                    }
+                    // ★ 修复：横竖屏都切换控制栏
+                    showControls = !showControls
+                    if (showControls) scheduleHideControls()
                 }
         )
 
-        // 控制覆盖层
-        val controlsVisible = !isFullscreen || showControls
-        if (controlsVisible) {
-            // 顶部控制栏
+        // ★ 修复：控制栏统一用 showControls 控制，不再区分横竖屏
+        if (showControls) {
+            // 顶部控制栏（半透明）
             Row(
-                modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(8.dp).align(Alignment.TopStart),
+                modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp).align(Alignment.TopStart),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
@@ -259,24 +315,36 @@ fun PlayerScreen(
                         hideControlsJob?.cancel()
                         showControls = true
                     } else {
+                        savePosition(prefs, movieId, currentEpisodeIndex, exoPlayer)
                         navController.popBackStack()
                     }
                 }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "返回", tint = Color.White)
                 }
-                val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title ?: "第${currentEpisodeIndex + 1}集"
-                Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                val epTitle = playSources.getOrNull(currentSourceIndex)?.episodes?.getOrNull(currentEpisodeIndex)?.title
+                    ?: "第${currentEpisodeIndex + 1}集"
+                Text(epTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     isFullscreen = !isFullscreen
-                    if (isFullscreen) {
-                        showControls = true
-                        scheduleHideControls()
-                    } else {
-                        hideControlsJob?.cancel()
-                        showControls = true
-                    }
+                    if (isFullscreen) { showControls = true; scheduleHideControls() }
+                    else { hideControlsJob?.cancel(); showControls = true }
                 }) {
-                    Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen, contentDescription = "全屏", tint = Color.White)
+                    Icon(
+                        if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                        contentDescription = "全屏", tint = Color.White
+                    )
+                }
+            }
+        }
+
+        // 缓冲提示
+        if (exoPlayer.playbackState == Player.STATE_BUFFERING && !isChangingSource) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(40.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("缓冲中…", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                 }
             }
         }
@@ -317,11 +385,15 @@ fun PlayerScreen(
             }
         }
 
-        // 底部选集面板
-        if (controlsVisible && playSources.isNotEmpty()) {
+        // ★ 修复：底部控制面板（选集+线路），只在控制栏显示时展示
+        if (showControls && playSources.isNotEmpty()) {
             Column(
-                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(start=8.dp, end=8.dp, bottom=80.dp)
-                    .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(10.dp)).padding(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
+                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(10.dp))
+                    .padding(8.dp)
             ) {
                 // 线路选择
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
@@ -369,6 +441,28 @@ fun PlayerScreen(
 }
 
 // ===== 工具函数 =====
+
+/**
+ * ★ 修复：保存播放位置到 SharedPreferences
+ * 每集独立存储，>95%自动清空（视为已看完）
+ */
+private fun savePosition(prefs: android.content.SharedPreferences, movieId: String, episodeIdx: Int, player: ExoPlayer) {
+    try {
+        val pos = player.currentPosition
+        val dur = player.duration.coerceAtLeast(0)
+        if (dur > 0) {
+            val key = "play_progress_${movieId}_${episodeIdx}"
+            val ratio = pos.toFloat() / dur.toFloat()
+            if (ratio >= 0.95f) {
+                // 看完95%以上，清空记录，下次从头播
+                prefs.edit().remove(key).apply()
+            } else if (ratio > 0.02f && pos > 3000) {
+                // 播了超过3秒才存（避免误存0位置）
+                prefs.edit().putLong(key, pos).apply()
+            }
+        }
+    } catch (_: Exception) {}
+}
 
 private fun playExo(player: ExoPlayer, playUrl: PlayUrl) {
     val builder = MediaItem.Builder().setUri(playUrl.url)
