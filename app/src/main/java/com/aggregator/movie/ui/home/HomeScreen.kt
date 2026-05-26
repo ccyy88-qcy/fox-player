@@ -31,6 +31,7 @@ import com.aggregator.movie.data.model.WatchHistoryEntity
 import com.aggregator.movie.ui.Screen
 import com.aggregator.movie.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 val categoryTabs = listOf("首页", "电影", "连续剧", "综艺", "动漫", "短剧")
@@ -53,12 +54,13 @@ fun HomeScreen(navController: NavHostController) {
             onSuccess = { homeData = it },
             onFailure = {}
         )
-        isLoading = false
 
-        // 加载续看历史
-        repository.getWatchHistory().collect { history ->
-            continueHistory = history.firstOrNull()
-        }
+        // 加载续看历史（用first()一次性获取，不用collect持续监听）
+        try {
+            continueHistory = repository.getWatchHistory().first().firstOrNull()
+        } catch (_: Exception) {}
+
+        isLoading = false
     }
 
     Box(modifier = Modifier.fillMaxSize().background(LightBg)) {
