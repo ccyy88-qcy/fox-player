@@ -38,17 +38,14 @@ fun HomeScreen(navController: NavHostController) {
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
     
     LaunchedEffect(Unit) {
-        scope.launch {
-            isLoading = true
-            repository.getHomeData().fold(
-                onSuccess = { homeData = it; error = null },
-                onFailure = { error = it.message }
-            )
-            isLoading = false
-        }
+        isLoading = true
+        repository.getHomeData().fold(
+            onSuccess = { homeData = it; error = null },
+            onFailure = { error = it.message }
+        )
+        isLoading = false
     }
     
     LazyColumn(

@@ -1,6 +1,8 @@
 package com.aggregator.movie.data.api
 
 import com.aggregator.movie.data.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -48,7 +50,7 @@ class ZuidaMovieSource(
         }
     }
 
-    private fun fetchDetailBatch(ids: List<String>): List<Movie> {
+    private suspend fun fetchDetailBatch(ids: List<String>): List<Movie> {
         if (ids.isEmpty()) return emptyList()
         return try {
             val idStr = ids.joinToString(",")
@@ -127,7 +129,7 @@ class ZuidaMovieSource(
     }
 
     // ===== HTTP =====
-    private fun apiCall(params: String): JSONObject {
+    private suspend fun apiCall(params: String): JSONObject = withContext(Dispatchers.IO) {
         val url = "$baseUrl?$params"
         val request = Request.Builder()
             .url(url)
@@ -138,7 +140,7 @@ class ZuidaMovieSource(
         val response = client.newCall(request).execute()
         val body = response.body?.string() ?: "{}"
         if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
-        return JSONObject(body)
+        JSONObject(body)
     }
 
     // ===== 解析 =====
