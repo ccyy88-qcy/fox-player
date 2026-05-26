@@ -34,7 +34,6 @@ private val DarkColorScheme = darkColorScheme(
 fun MovieAggregatorTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColorScheme,
-        typography = androidx.compose.material3.Typography,
         content = content
     )
 }
