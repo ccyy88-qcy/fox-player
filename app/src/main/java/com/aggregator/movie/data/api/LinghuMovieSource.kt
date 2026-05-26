@@ -36,11 +36,10 @@ class LinghuMovieSource(
                     append(params.entries.joinToString("&") { "${it.key}=${URLEncoder.encode(it.value, "UTF-8")}" })
                 }
             }
-            val request = Request.Builder().url(url)
-                .header("User-Agent", "okhttp/4.9.3")
-                .header("Accept", "application/json")
-                .client(client)
-                .build()
+        val request = Request.Builder().url(url)
+            .header("User-Agent", "okhttp/4.9.3")
+            .header("Accept", "application/json")
+            .build()
             val resp = client.newCall(request).execute()
             JSONObject(resp.body?.string() ?: "{}")
         }
