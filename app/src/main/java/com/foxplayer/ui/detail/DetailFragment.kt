@@ -279,8 +279,46 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
     private fun loadDetail(view: View) {
         val v = video ?: return
         val sourceKey = v.sourceKey
-        if (sourceKey.isBlank()) return
 
+        scope.launch {
+            try {
+                // ★ 并发请求所有主源，谁先出结果就用谁
+                val allSources = BuiltinSources.getPrimarySources()
+                val deferreds = allSources.map { src ->
+                    async {
+                        if (src.api.isBlank()) emptyList() else
+                            searchAndGetEpisodes(v.title, src.api)
+                    }
+                }
+
+                // 逐个等，取第一个非空结果
+                for (deferred in deferreds) {
+                    val eps = deferred.await()
+                    if (eps.isNotEmpty()) {
+                        val srcName = allSources[deferreds.indexOf(deferred)].name
+                        withContext(Dispatchers.Main) {
+                            episodeAdapter.submitList(eps)
+                            rawEpisodes = eps
+                            applySort()
+                            allEpisodesBySource[allSources[deferreds.indexOf(deferred)].api] = eps
+                            episodesLoaded = true
+                            view.findViewById<TextView>(R.id.tvCurrentSource).text = srcName
+                        }
+                        return@launch  // 找到即返回
+                    }
+                }
+
+                // 所有源都空 → 提示手动换源
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(requireContext(),
+                        "所有源均未找到剧集，请点\"换源\"手动搜索", android.widget.Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DetailFragment", "loadDetail error", e)
+            }
+        }
+
+        // 备用：也尝试通过 SourceManager 的 getDetailWithFallback
         scope.launch {
             try {
                 val app = requireActivity().application as FoxApp
@@ -288,18 +326,18 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
                 val detail = withContext(Dispatchers.IO) {
                     manager.getDetailWithFallback(v)
                 }
-                if (detail != null && detail.episodes.isNotEmpty()) {
+                if (detail != null && detail.episodes.isNotEmpty() && !episodesLoaded) {
                     video = detail
-                    view.findViewById<TextView>(R.id.tvDetailDesc).text = detail.desc
-                    episodeAdapter.submitList(detail.episodes)
-                    rawEpisodes = detail.episodes
-                    applySort()
-                    allEpisodesBySource[sourceKey] = detail.episodes
-                    episodesLoaded = true
+                    withContext(Dispatchers.Main) {
+                        view.findViewById<TextView>(R.id.tvDetailDesc).text = detail.desc
+                        episodeAdapter.submitList(detail.episodes)
+                        rawEpisodes = detail.episodes
+                        applySort()
+                        allEpisodesBySource[sourceKey] = detail.episodes
+                        episodesLoaded = true
+                    }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("DetailFragment", "loadDetail error", e)
-            }
+            } catch (_: Exception) { }
         }
     }
 
