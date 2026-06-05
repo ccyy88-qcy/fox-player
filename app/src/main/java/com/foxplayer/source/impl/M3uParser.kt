@@ -23,6 +23,27 @@ object M3uParser {
         "广告", "ad", "advert",
     )
 
+    /** 真实电视频道名关键词 — 非此列表中的频道将被过滤 */
+    private val TV_KEYWORDS = listOf(
+        "CCTV", "央视",
+        "卫视",
+        "频道",
+        "电视台", "电视",
+        "综合", "新闻", "经济", "都市", "生活", "文艺",
+        "影视", "电影", "体育", "娱乐", "少儿", "卡通",
+        "科教", "纪录", "戏曲", "音乐", "法治", "公共",
+        "国际", "军事", "农业", "少儿",
+    )
+
+    /** 已知的影片/非直播内容名 — 过滤掉 */
+    private val MOVIE_NAMES = setOf(
+        "西游记", "三国演义", "水浒传", "红楼梦",
+        "天龙八部", "鹿鼎记", "笑傲江湖", "射雕英雄传",
+        "仙剑奇侠传", "封神榜", "闯关东", "新白娘子传奇",
+        "庆余年", "狂飙", "三体", "繁花",
+        "斗破苍穹", "长相思", "与凤行", "玫瑰的故事",
+    )
+
     /** 已知的常见有效直播域名（用于保留过滤） */
     private val VALID_HOST_KEYWORDS = listOf(
         "cctv", "cntv", "tv.", "live.", "hls.", "stream",
@@ -129,14 +150,21 @@ object M3uParser {
         }
     }
 
-    /** 过滤无效 + 去重 */
+    /** 过滤无效 + 去重 + 只保留真实电视台 */
     private fun filterAndDeduplicate(list: List<LiveChannel>): List<LiveChannel> {
-        // 1. 过滤无效URL
+        // 1. 过滤无效URL + 过滤非电视台名称
         val filtered = list.filter { ch ->
+            val name = ch.name.trim()
             ch.url.isNotBlank() &&
             ch.url.startsWith("http") &&
-            ch.name.isNotBlank() &&
-            !INVALID_PATTERNS.any { ch.url.contains(it, ignoreCase = true) }
+            name.isNotBlank() &&
+            name.length >= 4 && // 电视台名至少4字
+            !INVALID_PATTERNS.any { ch.url.contains(it, ignoreCase = true) } &&
+            !MOVIE_NAMES.any { name.contains(it) } &&
+            // 必须包含电视台关键词 或 在有效直播组
+            (TV_KEYWORDS.any { name.contains(it) } ||
+             ch.group.contains("央视") || ch.group.contains("卫视") ||
+             ch.group.contains("频道") || ch.group.contains("电视"))
         }
 
         // 2. 去重：同组+同名只留一个（保留第一个）

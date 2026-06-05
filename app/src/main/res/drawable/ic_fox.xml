@@ -4,46 +4,52 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- 背景圆 -->
+    <path
+        android:fillColor="#FFE85050"
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
     <!-- 狐狸脸 -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M34,68 L54,38 L74,68 Z" />
+        android:pathData="M34,65 L54,38 L74,65 Z" />
     <!-- 左耳 -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M38,45 L30,22 L46,38 Z" />
+        android:pathData="M38,42 L30,20 L46,35 Z" />
     <!-- 右耳 -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M70,45 L78,22 L62,38 Z" />
+        android:pathData="M70,42 L78,20 L62,35 Z" />
     <!-- 左耳内 -->
     <path
         android:fillColor="#FFFFB8B8"
-        android:pathData="M40,43 L34,28 L45,39 Z" />
+        android:pathData="M40,40 L34,26 L45,36 Z" />
     <!-- 右耳内 -->
     <path
         android:fillColor="#FFFFB8B8"
-        android:pathData="M68,43 L74,28 L63,39 Z" />
-    <!-- 眼 -->
+        android:pathData="M68,40 L74,26 L63,36 Z" />
+    <!-- 眼睛 -->
     <path
         android:fillColor="#FF1A1A2E"
-        android:pathData="M45,52 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+        android:pathData="M46,50 A3,3 0,1,1 47,50"
+        android:strokeWidth="1" />
     <path
         android:fillColor="#FF1A1A2E"
-        android:pathData="M63,52 m-3,0 a3,3 0,1 1,6 0 a3,3 0,1 1,-6 0" />
+        android:pathData="M62,50 A3,3 0,1,1 63,50"
+        android:strokeWidth="1" />
     <!-- 鼻子 -->
     <path
         android:fillColor="#FF1A1A2E"
-        android:pathData="M54,58 L51,61 L57,61 Z" />
+        android:pathData="M54,55 L52,57 L56,57 Z" />
     <!-- 嘴 -->
     <path
         android:strokeColor="#FF1A1A2E"
         android:strokeWidth="1.5"
-        android:pathData="M54,61 Q49,66 44,62"
+        android:pathData="M54,57 Q50,61 46,58"
         android:fillColor="#00000000" />
     <path
         android:strokeColor="#FF1A1A2E"
         android:strokeWidth="1.5"
-        android:pathData="M54,61 Q59,66 64,62"
+        android:pathData="M54,57 Q58,61 62,58"
         android:fillColor="#00000000" />
 </vector>

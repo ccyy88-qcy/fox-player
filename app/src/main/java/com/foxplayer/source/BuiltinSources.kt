@@ -4,13 +4,13 @@ import com.foxplayer.model.VideoSource
 
 object BuiltinSources {
     val videoSources: List<VideoSource> = listOf(
-        // ★ 主源 — 已验证 Termux/手机数据均可
-        VideoSource(key = "guangsu", name = "光速资源", type = "json",
-            api = "https://api.guangsuapi.com/api.php/provide/vod/", group = "主源"),
+        // ★ 主源 — 优先级顺序：速播(最快) > 最大(量多) > 光速(稳定)
         VideoSource(key = "subozy", name = "速播资源", type = "json",
             api = "https://www.subozy.com/api.php/provide/vod/", group = "主源"),
         VideoSource(key = "zuidazy", name = "最大资源", type = "json",
             api = "https://zuidazy.com/api.php/provide/vod/", group = "主源"),
+        VideoSource(key = "guangsu", name = "光速资源", type = "json",
+            api = "https://api.guangsuapi.com/api.php/provide/vod/", group = "主源"),
         // 备用源
         VideoSource(key = "1080zyk", name = "1080资源库", type = "json",
             api = "https://api.1080zyku.com/inc/apijson.php", group = "备用"),
