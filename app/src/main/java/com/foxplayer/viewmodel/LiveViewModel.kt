@@ -23,10 +23,21 @@ class LiveViewModel : ViewModel() {
                 val list = withContext(Dispatchers.IO) {
                     M3uParser.parseFromUrl(BuiltinSources.DEFAULT_LIVE_URL)
                 }
-                allChannels = list
-                channels.value = list
-                groups.value = listOf("全部") + list.map { it.group }.distinct()
-                toast.value = "直播源加载成功: ${list.size}个频道"
+                if (list.isEmpty()) {
+                    // 主源空，尝试备用
+                    val backup = withContext(Dispatchers.IO) {
+                        M3uParser.parseFromUrl(BuiltinSources.BACKUP_LIVE_URL)
+                    }
+                    allChannels = backup
+                    channels.value = backup
+                    groups.value = listOf("全部") + backup.map { it.group }.distinct().take(20)
+                    toast.value = "备用直播源: ${backup.size}个频道"
+                } else {
+                    allChannels = list
+                    channels.value = list
+                    groups.value = listOf("全部") + list.map { it.group }.distinct().take(20)
+                    toast.value = "直播源加载成功: ${list.size}个频道"
+                }
             } catch (e: Exception) {
                 toast.value = "直播源加载失败: ${e.message}"
                 // 用内置频道兜底

@@ -12,8 +12,10 @@ import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
-import com.google.android.exoplayer2.upstream.DefaultLoadErrorHandlingPolicy
+import com.foxplayer.util.HttpClientManager
+import com.foxplayer.util.QualityUrlBuilder
 import com.foxplayer.util.UrlResolver
+import com.google.android.exoplayer2.upstream.DefaultLoadErrorHandlingPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -244,25 +246,54 @@ class FoxPlayer(private val context: Context) {
         return qualities.distinctBy { it.label }.sortedByDescending { it.height }
     }
 
-    /** 切到指定画质 */
+    /** 切到指定画质 — 优先使用真实画质URL */
     fun switchQuality(qualityIndex: Int) {
-        val trackParams = trackSelector.buildUponParameters()
         if (qualityIndex < 0) {
             // 自动：清除限制
-            trackParams.clearVideoSizeConstraints()
-            trackParams.setMaxVideoSize(1920, 1080)
-        } else {
-            val q = availableQualities.getOrNull(qualityIndex) ?: return
-            // 限制到该画质附近的范围
-            val minH = (q.height * 0.8).toInt()
-            val maxH = (q.height * 1.2).toInt()
-            trackParams.setMaxVideoSize(9999, maxH)
-            trackParams.setMinVideoSize(0, minH)
-            // 限制码率
-            val maxBr = (q.bitrate * 1.5).toInt().coerceAtLeast(2_000_000)
-            trackParams.setMaxVideoBitrate(maxBr)
+            val autoParams = trackSelector.buildUponParameters()
+                .apply {
+                    clearVideoSizeConstraints()
+                    setMaxVideoSize(1920, 1080)
+                    setMaxVideoBitrate(5_000_000)
+                }
+            trackSelector.setParameters(autoParams.build())
+            currentQualityIndex = -1
+            return
         }
-        trackSelector.setParameters(trackParams.build())
+
+        val q = availableQualities.getOrNull(qualityIndex) ?: run {
+            // 没有ExoPlayer检测到的画质 → 用QualityUrlBuilder生成真实URL
+            if (currentUrl.isNotBlank() && availableQualities.size <= 1) {
+                val labels = listOf("超清", "高清", "标清", "流畅")
+                val label = labels.getOrNull(qualityIndex) ?: return
+                val realUrl = QualityUrlBuilder.getQualityUrl(currentUrl, label)
+                if (realUrl != currentUrl) {
+                    // 重新播放新清晰度URL（保持播放位置）
+                    val pos = exoPlayer.currentPosition
+                    val wasPlaying = exoPlayer.isPlaying
+                    exoPlayer.stop()
+                    currentUrl = realUrl
+                    exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(realUrl)))
+                    exoPlayer.prepare()
+                    if (wasPlaying) {
+                        exoPlayer.seekTo(pos)
+                        exoPlayer.play()
+                    }
+                }
+            }
+            return
+        }
+
+        // ExoPlayer有该画质 → 用track限制
+        val minH = (q.height * 0.6).toInt().coerceAtLeast(240)
+        val maxH = (q.height * 1.2).toInt()
+        val maxBr = (q.bitrate * 1.5).toInt().coerceAtLeast(1_000_000)
+
+        val params = trackSelector.buildUponParameters()
+            .setMaxVideoSize(9999, maxH)
+            .setMinVideoSize(0, minH)
+            .setMaxVideoBitrate(maxBr)
+        trackSelector.setParameters(params.build())
         currentQualityIndex = qualityIndex
     }
 

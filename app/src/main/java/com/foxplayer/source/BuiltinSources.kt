@@ -25,15 +25,15 @@ object BuiltinSources {
     )
 
     val liveSources: List<Pair<String, String>> = listOf(
-        "肥羊直播" to "https://raw.githubusercontent.com/Guovin/TV/gd/output/result.m3u",
         "IPTV中国" to "https://iptv-org.github.io/iptv/countries/cn.m3u",
+        "肥羊直播" to "https://raw.githubusercontent.com/Guovin/TV/gd/output/result.m3u",
     )
 
-    /** 获取启用的主源列表 */
+    /** 主用直播源 */
+    const val DEFAULT_LIVE_URL = "https://iptv-org.github.io/iptv/countries/cn.m3u"
+    /** 备用直播源 */
+    const val BACKUP_LIVE_URL = "https://raw.githubusercontent.com/Guovin/TV/gd/output/result.m3u"
+
     fun getPrimarySources(): List<VideoSource> = videoSources.filter { it.group == "主源" }
-
-    /** 获取启用的备用源列表 */
     fun getBackupSources(): List<VideoSource> = videoSources.filter { it.group == "备用" }
-
-    const val DEFAULT_LIVE_URL = "https://raw.githubusercontent.com/Guovin/TV/gd/output/result.m3u"
 }
