@@ -80,6 +80,11 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
                 } else {
                     p.play()
                     ivPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                    ivPlayPause.visibility = View.VISIBLE
+                    handler.removeCallbacksAndMessages(ivPlayPause)
+                    handler.postDelayed({
+                        ivPlayPause.visibility = View.GONE
+                    }, ivPlayPause, 3000)
                     autoHideControls()
                 }
             }
@@ -155,11 +160,17 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
                                 // 更新时长显示
                                 val dur = player?.getDuration() ?: 0
                                 if (dur > 0) tvDuration.text = formatMs(dur)
-                                // 隐藏播放按钮，显示暂停图标
+                                // 播放中：显示暂停图标，3秒后自动隐藏
                                 ivPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                                ivPlayPause.visibility = View.VISIBLE
+                                handler.removeCallbacksAndMessages(ivPlayPause)
+                                handler.postDelayed({
+                                    ivPlayPause.visibility = View.GONE
+                                }, ivPlayPause, 3000)
                             }
                             com.google.android.exoplayer2.Player.STATE_BUFFERING -> {
                                 progressBar.visibility = View.VISIBLE
+                                ivPlayPause.visibility = View.GONE
                             }
                             com.google.android.exoplayer2.Player.STATE_ENDED -> {
                                 ivPlayPause.setImageResource(android.R.drawable.ic_media_play)
@@ -235,6 +246,10 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         val view = requireView()
         view.findViewById<LinearLayout>(R.id.topBar).visibility = View.VISIBLE
         view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.VISIBLE
+        // 暂停时显示播放按钮，播放时3秒后隐藏
+        if (player?.isPlaying() != true) {
+            view.findViewById<ImageView>(R.id.ivPlayPause).visibility = View.VISIBLE
+        }
         controlsVisible = true
         handler.removeCallbacksAndMessages(null)
         if (player?.isPlaying() == true) {
@@ -247,6 +262,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         val view = requireView()
         view.findViewById<LinearLayout>(R.id.topBar).visibility = View.GONE
         view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.GONE
+        view.findViewById<ImageView>(R.id.ivPlayPause).visibility = View.GONE
         controlsVisible = false
     }
 

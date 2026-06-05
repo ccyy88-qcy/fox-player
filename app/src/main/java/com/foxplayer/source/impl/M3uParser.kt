@@ -1,11 +1,9 @@
 package com.foxplayer.source.impl
 
 import com.foxplayer.model.LiveChannel
+import com.foxplayer.util.HttpClientManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.net.URI
 
 /**
  * M3U/M3U8/TXT 直播源解析器
@@ -13,22 +11,37 @@ import java.net.URI
  *   - #EXTM3U 格式
  *   - TXT格式 (频道名,URL)
  *   - TVBox live 格式 (组名,#genre#,频道名,URL)
+ *
+ * 自动去重 + 过滤无效源
  */
 object M3uParser {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
+
+    /** 已知的无效URL模式 */
+    private val INVALID_PATTERNS = listOf(
+        "127.0.0.1", "localhost", "0.0.0.0",
+        "example.com", "test.com", "null",
+        "广告", "ad", "advert",
+    )
+
+    /** 已知的常见有效直播域名（用于保留过滤） */
+    private val VALID_HOST_KEYWORDS = listOf(
+        "cctv", "cntv", "tv.", "live.", "hls.", "stream",
+        "m3u8", "play", "cdn", "video", "pull",
+        "移动", "联通", "电信", "iptv",
+    )
 
     suspend fun parseFromUrl(url: String): List<LiveChannel> = withContext(Dispatchers.IO) {
         try {
-            val resp = client.newCall(Request.Builder().url(url).build()).execute()
-            val text = resp.body?.string() ?: return@withContext emptyList()
-            parse(text)
+            val body = HttpClientManager.get(url)
+            if (body.isNullOrBlank()) return@withContext emptyList()
+            val channels = parse(body)
+            filterAndDeduplicate(channels)
         } catch (_: Exception) { emptyList() }
     }
 
     suspend fun parseFromText(text: String): List<LiveChannel> = withContext(Dispatchers.IO) {
-        parse(text)
+        val channels = parse(text)
+        filterAndDeduplicate(channels)
     }
 
     private fun parse(text: String): List<LiveChannel> {
@@ -76,18 +89,31 @@ object M3uParser {
     private fun parseTvBox(text: String): List<LiveChannel> {
         val channels = mutableListOf<LiveChannel>()
         var group = "默认"
+        var prevName = ""
 
         text.lines().map { it.trim() }.filter { it.isNotEmpty() }.forEach { line ->
             when {
-                line == "#genre#" -> {}  // next line is group name
-                line.startsWith("http") -> {}  // URL of previous channel
+                // TVBox标准: 频道名,URL (下一行可能是组名)
+                line.startsWith("http") && prevName.isNotEmpty() -> {
+                    channels.add(LiveChannel(name = prevName, url = line, group = group))
+                    prevName = ""
+                }
+                line == "#genre#" -> { }
                 line.contains(",") && !line.startsWith("#") -> {
+                    // 可能是一行格式: 频道名,URL
                     val parts = line.split(",", limit = 2)
-                    if (parts.size == 2) {
-                        channels.add(LiveChannel(name = parts[0], url = parts[1], group = group))
+                    val second = parts.getOrElse(1) { "" }.trim()
+                    if (second.startsWith("http")) {
+                        channels.add(LiveChannel(name = parts[0].trim(), url = second, group = group))
+                    } else {
+                        // 这是组名+频道名格式: 央视,#genre#\nCCTV-1,http://...
+                        prevName = parts[0].trim()
                     }
                 }
-                else -> group = line  // this is a group name
+                else -> {
+                    // 单独一行可能是组名
+                    if (line != "#genre#") group = line
+                }
             }
         }
         return channels
@@ -101,5 +127,39 @@ object M3uParser {
                 LiveChannel(name = parts[0], url = parts[1])
             } else null
         }
+    }
+
+    /** 过滤无效 + 去重 */
+    private fun filterAndDeduplicate(list: List<LiveChannel>): List<LiveChannel> {
+        // 1. 过滤无效URL
+        val filtered = list.filter { ch ->
+            ch.url.isNotBlank() &&
+            ch.url.startsWith("http") &&
+            ch.name.isNotBlank() &&
+            !INVALID_PATTERNS.any { ch.url.contains(it, ignoreCase = true) }
+        }
+
+        // 2. 去重：同组+同名只留一个（保留第一个）
+        val seen = mutableSetOf<String>()
+        val deduped = mutableListOf<LiveChannel>()
+        for (ch in filtered) {
+            val key = "${ch.group}:${ch.name}"
+            if (key !in seen) {
+                seen.add(key)
+                deduped.add(ch)
+            }
+        }
+
+        // 3. 频道排序：央视 > 卫视 > 其他
+        val sorted = deduped.sortedBy { ch ->
+            when {
+                ch.group.contains("央视") || ch.group.contains("CCTV") -> 0
+                ch.group.contains("卫视") -> 1
+                ch.group.contains("省") || ch.group.contains("地方") -> 2
+                else -> 3
+            }
+        }
+
+        return sorted
     }
 }
