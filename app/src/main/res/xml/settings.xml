@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:key="theme"
+        android:title="主题模式"
+        android:entries="@array/theme_names"
+        android:entryValues="@array/theme_values"
+        android:defaultValue="2" />
+    <SwitchPreference
+        android:key="hw_decode"
+        android:title="硬件解码"
+        android:defaultValue="true"
+        android:summary="关闭则使用软解" />
+    <Preference
+        android:key="source_manage"
+        android:title="源管理"
+        android:summary="添加/编辑/删除视频源" />
+    <Preference
+        android:key="about"
+        android:title="关于"
+        android:summary="狐狸播放器 v1.0.0" />
+</PreferenceScreen>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.FoxPlayer" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/fox_primary</item>
+        <item name="colorPrimaryVariant">@color/fox_primary_variant</item>
+        <item name="colorOnPrimary">@color/fox_on_primary</item>
+        <item name="colorSecondary">@color/fox_accent</item>
+        <item name="colorSurface">@color/fox_surface</item>
+        <item name="colorOnSurface">@color/fox_on_surface</item>
+        <item name="android:colorBackground">@color/fox_surface</item>
+        <item name="android:statusBarColor">@color/fox_primary</item>
+        <item name="android:navigationBarColor">@color/fox_primary</item>
+        <item name="android:windowBackground">@color/fox_surface</item>
+    </style>
+
+    <style name="Theme.FoxPlayer.Player" parent="Theme.FoxPlayer">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="FoxCardView" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/fox_card_bg</item>
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <style name="FoxChip" parent="Widget.Material3.Chip.Suggestion">
+        <item name="chipBackgroundColor">@color/fox_card_bg</item>
+        <item name="android:textColor">@color/fox_on_surface</item>
+    </style>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fox_primary">#FF0F0F1A</color>
+    <color name="fox_primary_variant">#FF1A1A2E</color>
+    <color name="fox_accent">#FFFF6B6B</color>
+    <color name="fox_accent2">#FF4ECDC4</color>
+    <color name="fox_surface">#FF1A1A2E</color>
+    <color name="fox_on_primary">#FFFFFFFF</color>
+    <color name="fox_on_surface">#FFE8ECF0</color>
+    <color name="fox_text_secondary">#FF8892A0</color>
+    <color name="fox_divider">#FF2A2A3E</color>
+    <color name="fox_card_bg">#FF232336</color>
+    <color name="fox_rating">#FFFFB800</color>
+</resources>
