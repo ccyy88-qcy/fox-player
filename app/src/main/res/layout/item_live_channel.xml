@@ -4,13 +4,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_margin="3dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?android:attr/selectableItemBackground"
-    app:cardCornerRadius="10dp"
+    app:cardCornerRadius="8dp"
     app:cardBackgroundColor="@color/fox_card"
-    app:cardElevation="1dp"
+    app:cardElevation="0.5dp"
     app:strokeWidth="0.5dp"
     app:strokeColor="@color/fox_divider">
 
@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp"
+        android:padding="8dp"
         android:gravity="center_vertical">
 
         <TextView
@@ -27,17 +27,16 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:textColor="@color/fox_text_primary"
-            android:textSize="15sp"
-            android:textStyle="bold"
+            android:textSize="12sp"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:ellipsize="none" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="▶"
             android:textColor="@color/fox_accent"
-            android:textSize="14sp"
-            android:layout_marginStart="8dp" />
+            android:textSize="11sp"
+            android:layout_marginStart="4dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

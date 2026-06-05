@@ -32,14 +32,25 @@ class FoxPlayer(private val context: Context) {
     var onPlaybackStateChanged: ((Int) -> Unit)? = null
 
     init {
+        // 码率自适应：优先流畅而不是画质
         val trackSelectionFactory = AdaptiveTrackSelection.Factory()
         trackSelector = DefaultTrackSelector(context, trackSelectionFactory)
+        trackSelector.setParameters(
+            trackSelector.buildUponParameters()
+                .setMaxVideoSize(1920, 1080)        // 最大1080p
+                .setMaxVideoBitrate(5_000_000)       // 最大5Mbps
+                .setAllowVideoMixedMimeTypeAdaptiveness(false)
+                .setAllowAudioMixedMimeTypeAdaptiveness(false)
+                .build()
+        )
 
         exoPlayer = ExoPlayer.Builder(context)
             .setTrackSelector(trackSelector)
             .setLoadControl(DefaultLoadControl.Builder().apply {
-                // 增大缓冲: 初始15秒, 最大60秒, 重缓冲5秒
-                setBufferDurationsMs(15_000, 60_000, 5_000, 10_000)
+                // 流畅优先：小缓冲，低延迟
+                setBufferDurationsMs(3_000, 15_000, 1_000, 3_000)
+                setTargetBufferBytes(5 * 1024 * 1024) // 5MB最大缓存
+                setPrioritizeTimeOverSizeThresholds(true)
             }.build())
             .setAudioAttributes(AudioAttributes.Builder()
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -122,7 +133,8 @@ class FoxPlayer(private val context: Context) {
             lower.contains(".m3u8") -> {
                 android.util.Log.d("FoxPlayer", "→ HLS")
                 HlsMediaSource.Factory(dataSourceFactory)
-                    .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(5))
+                    .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(3))
+                    .setAllowChunklessPreparation(true)
                     .createMediaSource(MediaItem.fromUri(uri))
             }
             lower.contains(".mpd") -> {
