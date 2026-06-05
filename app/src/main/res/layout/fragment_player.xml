@@ -94,7 +94,19 @@
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="4dp"
                 android:background="#33FFFFFF"
-                android:layout_marginEnd="8dp" />
+                android:layout_marginEnd="4dp" />
+
+            <TextView
+                android:id="@+id/tvQuality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="流畅"
+                android:textSize="13sp"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:background="#33FFFFFF"
+                android:layout_marginEnd="4dp" />
 
             <ImageView
                 android:id="@+id/ivFullscreen"

@@ -23,6 +23,7 @@ class VideoGridAdapter(
         val tvType: TextView = view.findViewById(R.id.tvType)
         val tvRating: TextView = view.findViewById(R.id.tvRating)
         val tvQuality: TextView = view.findViewById(R.id.tvQuality)
+        val tvUpdate: TextView = view.findViewById(R.id.tvUpdate)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -68,6 +69,15 @@ class VideoGridAdapter(
             desc.contains("HD") || desc.contains("高清") -> { holder.tvQuality.text = "高清"; holder.tvQuality.visibility = View.VISIBLE }
             desc.contains("独播") -> { holder.tvQuality.text = "独播"; holder.tvQuality.visibility = View.VISIBLE }
             else -> holder.tvQuality.visibility = View.GONE
+        }
+
+        // 更新到XX集
+        val remark = video.remark
+        if (remark.isNotBlank() && (remark.contains("集") || remark.contains("期") || remark.contains("更新"))) {
+            holder.tvUpdate.text = remark
+            holder.tvUpdate.visibility = View.VISIBLE
+        } else {
+            holder.tvUpdate.visibility = View.GONE
         }
 
         holder.itemView.setOnClickListener { onClick(video) }

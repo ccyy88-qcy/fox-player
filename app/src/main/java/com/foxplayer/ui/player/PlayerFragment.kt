@@ -17,6 +17,7 @@ import com.foxplayer.player.FoxPlayer
 class PlayerFragment : Fragment(R.layout.fragment_player) {
     private var player: FoxPlayer? = null
     private val handler = Handler(Looper.getMainLooper())
+    private val progressHandler = Handler(Looper.getMainLooper())
     private var isSeeking = false
     private var isFullscreen = false
     private var playUrl = ""
@@ -59,13 +60,41 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         // ── 倍速切换 ──
         val tvSpeed = view.findViewById<TextView>(R.id.tvSpeed)
         val speeds = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-        var speedIdx = 2 // default 1.0x
+        var speedIdx = 2
         tvSpeed.setOnClickListener {
             speedIdx = (speedIdx + 1) % speeds.size
             player?.setSpeed(speeds[speedIdx])
             tvSpeed.text = String.format("%.2gx", speeds[speedIdx])
                     .replace("0.", ".").replace("1.0", "1").replace("1.5", "1.5")
             Toast.makeText(requireContext(), "倍速: ${tvSpeed.text}", Toast.LENGTH_SHORT).show()
+        }
+
+        // ── 画质切换 ──
+        val tvQuality = view.findViewById<TextView>(R.id.tvQuality)
+        tvQuality.setOnClickListener {
+            val p = player ?: return@setOnClickListener
+            val qualities = p.fetchAvailableQualities()
+            if (qualities.isEmpty()) {
+                Toast.makeText(requireContext(), "当前流无多画质可选", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val labels = qualities.map { it.label }
+            val current = p.currentQualityIndex
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle("选择画质")
+                .setSingleChoiceItems(labels.toTypedArray(), if (current < 0) -1 else current) { dialog, which ->
+                    dialog.dismiss()
+                    if (which >= 0 && which < qualities.size) {
+                        p.switchQuality(which)
+                        tvQuality.text = qualities[which].label
+                        Toast.makeText(requireContext(), "画质: ${qualities[which].label}", Toast.LENGTH_SHORT).show()
+                    } else if (which == -1) {
+                        p.switchQuality(-1)
+                        tvQuality.text = "自动"
+                    }
+                }
+                .setNegativeButton("自动", { d, _ -> d.dismiss(); p.switchQuality(-1); tvQuality.text = "自动" })
+                .show()
         }
 
         // ── 播放/暂停（居中大按钮） ──
@@ -96,8 +125,8 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         val tvDuration = view.findViewById<TextView>(R.id.tvDuration)
         val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
 
-        // 进度定时更新
-        handler.post(object : Runnable {
+        // 进度定时更新（用独立的 progressHandler，不受 showControls 干扰）
+        progressHandler.post(object : Runnable {
             override fun run() {
                 val p = player ?: return
                 val pos = p.getCurrentPosition()
@@ -107,11 +136,10 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
                     tvProgress.text = formatMs(pos)
                     tvDuration.text = formatMs(dur)
                 } else if (dur <= 0) {
-                    // 还没获取到时长，显示当前进度
                     tvProgress.text = formatMs(pos)
                     tvDuration.text = "--:--"
                 }
-                handler.postDelayed(this, 500)
+                progressHandler.postDelayed(this, 500)
             }
         })
 
@@ -288,6 +316,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
     override fun onDestroyView() {
         savePosition()
+        progressHandler.removeCallbacksAndMessages(null)
         handler.removeCallbacksAndMessages(null)
         player?.release(); player = null
         if (isFullscreen) exitFullscreen()

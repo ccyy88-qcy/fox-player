@@ -26,6 +26,7 @@ class PlayerActivity : AppCompatActivity() {
     private var errorRetryCount = 0
     private var isSeeking = false
     private val handler = Handler(Looper.getMainLooper())
+    private val progressHandler = Handler(Looper.getMainLooper())
 
     companion object {
         private const val PREFS_NAME = "fox_player_history"
@@ -71,6 +72,29 @@ class PlayerActivity : AppCompatActivity() {
             Toast.makeText(this, "倍速: ${tvSpeed.text}", Toast.LENGTH_SHORT).show()
         }
 
+        // 画质切换
+        val tvQuality = findViewById<TextView>(R.id.tvQuality)
+        tvQuality.setOnClickListener {
+            val p = player ?: return@setOnClickListener
+            val qualities = p.fetchAvailableQualities()
+            if (qualities.isEmpty()) {
+                Toast.makeText(this, "当前流无多画质可选", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val labels = qualities.map { it.label }
+            android.app.AlertDialog.Builder(this)
+                .setTitle("选择画质")
+                .setSingleChoiceItems(labels.toTypedArray(), -1) { dialog, which ->
+                    dialog.dismiss()
+                    if (which >= 0 && which < qualities.size) {
+                        p.switchQuality(which)
+                        tvQuality.text = qualities[which].label
+                    }
+                }
+                .setNegativeButton("自动", { d, _ -> d.dismiss(); p.switchQuality(-1); tvQuality.text = "自动" })
+                .show()
+        }
+
         // 播放/暂停
         val ivPlayPause = findViewById<ImageView>(R.id.ivPlayPause)
         ivPlayPause.setOnClickListener {
@@ -92,8 +116,8 @@ class PlayerActivity : AppCompatActivity() {
         val seekBar = findViewById<SeekBar>(R.id.seekBar)
         val tvProgress = findViewById<TextView>(R.id.tvProgress)
         val tvDuration = findViewById<TextView>(R.id.tvDuration)
-
-        handler.post(object : Runnable {
+        // 进度条（独立progressHandler，不受showControls干扰）
+        progressHandler.post(object : Runnable {
             override fun run() {
                 val p = player ?: return
                 val pos = p.getCurrentPosition()
@@ -106,7 +130,7 @@ class PlayerActivity : AppCompatActivity() {
                     tvProgress.text = formatMs(pos)
                     tvDuration.text = "--:--"
                 }
-                handler.postDelayed(this, 500)
+                progressHandler.postDelayed(this, 500)
             }
         })
 

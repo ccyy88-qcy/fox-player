@@ -87,6 +87,7 @@ class JsonSourceParser(
                 type = obj.get("type_name")?.asString ?: "",
                 rating = obj.get("vod_score")?.asString?.toFloatOrNull() ?: 0f,
                 sourceKey = sourceKey,
+                remark = obj.get("vod_remarks")?.asString?.take(20) ?: "",
             )
         }
     }

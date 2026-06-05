@@ -25,6 +25,11 @@ class FoxPlayer(private val context: Context) {
     private var trackSelector: DefaultTrackSelector
     private var exoPlayer: ExoPlayer
     var currentUrl: String = ""
+
+    // 可用画质列表
+    data class VideoQuality(val index: Int, val label: String, val height: Int, val bitrate: Int)
+    var availableQualities: List<VideoQuality> = emptyList()
+    var currentQualityIndex: Int = -1 // -1 = auto
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     var onBuffering: ((Boolean) -> Unit)? = null
@@ -211,6 +216,54 @@ class FoxPlayer(private val context: Context) {
     fun release() {
         scope.coroutineContext.javaClass // trigger cleanup
         exoPlayer.release()
+    }
+
+    /** 获取当前流的可用视频画质 */
+    fun fetchAvailableQualities(): List<VideoQuality> {
+        val qualities = mutableListOf<VideoQuality>()
+        try {
+            for (trackGroup in 0 until exoPlayer.currentTracks.groups.size) {
+                val group = exoPlayer.currentTracks.groups[trackGroup]
+                if (group.type != com.google.android.exoplayer2.C.TRACK_TYPE_VIDEO) continue
+                for (i in 0 until group.length) {
+                    val format = group.getTrackFormat(i)
+                    val height = format.height
+                    val bitrate = format.bitrate
+                    val label = when {
+                        height >= 1440 -> "4K"
+                        height >= 1080 -> "超清"
+                        height >= 720 -> "高清"
+                        height >= 480 -> "标清"
+                        height >= 360 -> "流畅"
+                        else -> "${height}p"
+                    }
+                    qualities.add(VideoQuality(i, label, height, bitrate))
+                }
+            }
+        } catch (_: Exception) {}
+        return qualities.distinctBy { it.label }.sortedByDescending { it.height }
+    }
+
+    /** 切到指定画质 */
+    fun switchQuality(qualityIndex: Int) {
+        val trackParams = trackSelector.buildUponParameters()
+        if (qualityIndex < 0) {
+            // 自动：清除限制
+            trackParams.clearVideoSizeConstraints()
+            trackParams.setMaxVideoSize(1920, 1080)
+        } else {
+            val q = availableQualities.getOrNull(qualityIndex) ?: return
+            // 限制到该画质附近的范围
+            val minH = (q.height * 0.8).toInt()
+            val maxH = (q.height * 1.2).toInt()
+            trackParams.setMaxVideoSize(9999, maxH)
+            trackParams.setMinVideoSize(0, minH)
+            // 限制码率
+            val maxBr = (q.bitrate * 1.5).toInt().coerceAtLeast(2_000_000)
+            trackParams.setMaxVideoBitrate(maxBr)
+        }
+        trackSelector.setParameters(trackParams.build())
+        currentQualityIndex = qualityIndex
     }
 
     companion object {

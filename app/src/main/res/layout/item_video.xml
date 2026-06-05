@@ -61,6 +61,20 @@
                 android:background="#88000000"
                 android:paddingHorizontal="5dp"
                 android:paddingVertical="2dp" />
+
+            <!-- 更新到XX集（右下角） -->
+            <TextView
+                android:id="@+id/tvUpdate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="9sp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="6dp"
+                android:background="#CCE85050"
+                android:paddingHorizontal="4dp"
+                android:paddingVertical="1dp"
+                android:visibility="gone" />
         </FrameLayout>
 
         <LinearLayout

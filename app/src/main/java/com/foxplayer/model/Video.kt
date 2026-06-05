@@ -17,6 +17,7 @@ data class Video(
     val rating: Float = 0f,
     val playUrl: String = "",      // direct play URL
     val sourceKey: String = "",    // which source
+    val remark: String = "",       // 更新到XX集
     val episodes: List<Episode> = emptyList(),
 ) : JSerializable
 

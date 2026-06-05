@@ -64,6 +64,7 @@ class HomeViewModel : ViewModel() {
                             type = obj.get("type_name")?.asString ?: "",
                             rating = obj.get("vod_score")?.asString?.toFloatOrNull() ?: 0f,
                             sourceKey = apiUrl,
+                            remark = obj.get("vod_remarks")?.asString?.take(20) ?: "",
                         ))
                     }
                 } catch (_: Exception) { }
