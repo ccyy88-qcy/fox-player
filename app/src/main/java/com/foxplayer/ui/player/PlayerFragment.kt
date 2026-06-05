@@ -1,5 +1,6 @@
 package com.foxplayer.ui.player
 
+import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -20,12 +21,20 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
     private var isFullscreen = false
     private var playUrl = ""
     private var title = ""
+    private var videoId = ""
+    private var controlsVisible = true
+
+    companion object {
+        private const val PREFS_NAME = "fox_player_history"
+        private const val KEY_PREFIX = "position_"
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         playUrl = arguments?.getString("url") ?: arguments?.getString("videoId") ?: ""
         title = arguments?.getString("title") ?: arguments?.getString("videoTitle") ?: ""
+        videoId = playUrl.hashCode().toString() // 用URL哈希作唯一标识
 
         if (playUrl.isBlank()) {
             Toast.makeText(requireContext(), "无播放地址", Toast.LENGTH_LONG).show()
@@ -34,29 +43,55 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
 
         view.findViewById<TextView>(R.id.tvTitle).text = title
 
-        // 返回键
+        // ── 返回键 ──
         view.findViewById<View>(R.id.ivBack).setOnClickListener {
+            savePosition()
             if (isFullscreen) exitFullscreen()
             findNavController().navigateUp()
         }
 
-        // 全屏键
+        // ── 全屏键 ──
         view.findViewById<View>(R.id.ivFullscreen).setOnClickListener {
             if (isFullscreen) exitFullscreen() else enterFullscreen()
         }
 
-        // 播放/暂停
-        view.findViewById<View>(R.id.ivPlayPause).setOnClickListener {
-            player?.let { p -> if (p.isPlaying()) p.pause() else p.play() }
+        // ── 倍速切换 ──
+        val tvSpeed = view.findViewById<TextView>(R.id.tvSpeed)
+        val speeds = floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+        var speedIdx = 2 // default 1.0x
+        tvSpeed.setOnClickListener {
+            speedIdx = (speedIdx + 1) % speeds.size
+            player?.setSpeed(speeds[speedIdx])
+            tvSpeed.text = String.format("%.2gx", speeds[speedIdx])
+                    .replace("0.", ".").replace("1.0", "1").replace("1.5", "1.5")
+            Toast.makeText(requireContext(), "倍速: ${tvSpeed.text}", Toast.LENGTH_SHORT).show()
         }
 
-        // 进度更新
+        // ── 播放/暂停（居中大按钮） ──
+        val ivPlayPause = view.findViewById<ImageView>(R.id.ivPlayPause)
+        ivPlayPause.setOnClickListener {
+            player?.let { p ->
+                if (p.isPlaying()) {
+                    p.pause()
+                    ivPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                    ivPlayPause.visibility = View.VISIBLE
+                    showControls()
+                } else {
+                    p.play()
+                    ivPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                    autoHideControls()
+                }
+            }
+        }
+
+        // ── 进度条 ──
         val seekBar = view.findViewById<SeekBar>(R.id.seekBar)
         val tvProgress = view.findViewById<TextView>(R.id.tvProgress)
         val tvDuration = view.findViewById<TextView>(R.id.tvDuration)
         val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
 
-        handler.postDelayed(object : Runnable {
+        // 进度定时更新
+        handler.post(object : Runnable {
             override fun run() {
                 val p = player ?: return
                 val pos = p.getCurrentPosition()
@@ -65,49 +100,105 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
                     seekBar.progress = ((pos * 100) / dur).toInt()
                     tvProgress.text = formatMs(pos)
                     tvDuration.text = formatMs(dur)
+                } else if (dur <= 0) {
+                    // 还没获取到时长，显示当前进度
+                    tvProgress.text = formatMs(pos)
+                    tvDuration.text = "--:--"
                 }
                 handler.postDelayed(this, 500)
             }
-        }, 500)
+        })
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                 if (fromUser) {
                     val dur = player?.getDuration() ?: 0
-                    if (dur > 0) tvProgress.text = formatMs((p.toLong() * dur) / 100)
+                    tvProgress.text = if (dur > 0) formatMs((p.toLong() * dur) / 100) else "00:00"
                 }
             }
             override fun onStartTrackingTouch(sb: SeekBar?) { isSeeking = true }
             override fun onStopTrackingTouch(sb: SeekBar?) {
                 isSeeking = false
                 val dur = player?.getDuration() ?: 0
-                if (dur > 0) player?.seekTo((seekBar.progress.toLong() * dur) / 100)
+                if (dur > 0) {
+                    player?.seekTo((seekBar.progress.toLong() * dur) / 100)
+                }
             }
         })
 
-        // SurfaceView
+        // ── SurfaceView ──
         val surfaceView = view.findViewById<SurfaceView>(R.id.playerSurface)
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 player = FoxPlayer(requireContext()).apply {
                     play(playUrl)
-                    onBuffering = { b -> progressBar.visibility = if (b) View.VISIBLE else View.GONE }
-                    onError = { msg -> Toast.makeText(requireContext(), "播放错误: $msg", Toast.LENGTH_LONG).show() }
+                    onBuffering = { b ->
+                        progressBar.visibility = if (b) View.VISIBLE else View.GONE
+                    }
+                    onError = { msg ->
+                        Toast.makeText(requireContext(), "播放错误: $msg", Toast.LENGTH_LONG).show()
+                    }
                     onPlaybackStateChanged = { state ->
-                        view.findViewById<ImageView>(R.id.ivPlayPause).visibility =
-                            if (state == com.google.android.exoplayer2.Player.STATE_READY) View.GONE else View.VISIBLE
+                        when (state) {
+                            com.google.android.exoplayer2.Player.STATE_READY -> {
+                                // 恢复播放位置
+                                val savedPos = loadPosition()
+                                if (savedPos > 5000) {
+                                    player?.seekTo(savedPos)
+                                    Toast.makeText(requireContext(), "已恢复播放位置", Toast.LENGTH_SHORT).show()
+                                }
+                                // 更新时长显示
+                                val dur = player?.getDuration() ?: 0
+                                if (dur > 0) tvDuration.text = formatMs(dur)
+                                // 隐藏播放按钮，显示暂停图标
+                                ivPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                            }
+                            com.google.android.exoplayer2.Player.STATE_BUFFERING -> {
+                                progressBar.visibility = View.VISIBLE
+                            }
+                            com.google.android.exoplayer2.Player.STATE_ENDED -> {
+                                ivPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                                ivPlayPause.visibility = View.VISIBLE
+                                showControls()
+                            }
+                            com.google.android.exoplayer2.Player.STATE_IDLE -> {
+                                progressBar.visibility = View.GONE
+                            }
+                        }
                     }
                 }
                 player?.setSurface(surfaceView)
+                // 初始显示控制栏
+                showControls()
             }
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {}
-            override fun surfaceDestroyed(holder: SurfaceHolder) { player?.release(); player = null }
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                savePosition()
+                player?.release()
+                player = null
+            }
         })
 
-        // 点击画面切换控制栏
-        surfaceView.setOnClickListener { toggleControls(view) }
-        showControls(view)
+        // ── 点击画面切换控制栏 ──
+        surfaceView.setOnClickListener { toggleControls() }
     }
+
+    // ── 记忆播放 ──
+
+    private fun savePosition() {
+        val pos = player?.getCurrentPosition() ?: return
+        if (pos > 3000) {
+            requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putLong("$KEY_PREFIX$videoId", pos).apply()
+        }
+    }
+
+    private fun loadPosition(): Long {
+        return requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getLong("$KEY_PREFIX$videoId", 0L)
+    }
+
+    // ── 全屏 ──
 
     private fun enterFullscreen() {
         val activity = requireActivity()
@@ -120,7 +211,6 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
             or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
         )
         isFullscreen = true
-        // 全屏时3秒后自动隐藏控制栏
         autoHideControls()
     }
 
@@ -131,41 +221,35 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         @Suppress("DEPRECATION")
         activity.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         isFullscreen = false
-        showControls(requireView())
+        showControls()
     }
 
-    private fun showControls(view: View) {
-        view.findViewById<LinearLayout>(R.id.topBar).visibility = View.VISIBLE
-        view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.VISIBLE
-        // 取消之前的隐藏任务
-        handler.removeCallbacksAndMessages(null)
-        // 3秒后自动隐藏
-        handler.postDelayed({
-            view.findViewById<LinearLayout>(R.id.topBar).visibility = View.GONE
-            view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.GONE
-        }, 3000)
-    }
+    // ── 控制栏显示/隐藏 ──
 
-    private fun autoHideControls() {
+    private fun showControls() {
         val view = requireView()
         view.findViewById<LinearLayout>(R.id.topBar).visibility = View.VISIBLE
         view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.VISIBLE
+        controlsVisible = true
         handler.removeCallbacksAndMessages(null)
-        // 全屏时2秒后自动隐藏
-        handler.postDelayed({
-            view.findViewById<LinearLayout>(R.id.topBar).visibility = View.GONE
-            view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.GONE
-        }, 2000)
+        if (player?.isPlaying() == true) {
+            handler.postDelayed({ autoHideControls() }, 4000)
+        }
     }
 
-    private fun toggleControls(view: View) {
-        val topBar = view.findViewById<LinearLayout>(R.id.topBar)
-        if (topBar.visibility == View.VISIBLE) {
-            topBar.visibility = View.GONE
-            view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.GONE
-            handler.removeCallbacksAndMessages(null)
+    private fun autoHideControls() {
+        if (!isAdded) return
+        val view = requireView()
+        view.findViewById<LinearLayout>(R.id.topBar).visibility = View.GONE
+        view.findViewById<LinearLayout>(R.id.bottomBar).visibility = View.GONE
+        controlsVisible = false
+    }
+
+    private fun toggleControls() {
+        if (controlsVisible) {
+            autoHideControls()
         } else {
-            if (isFullscreen) autoHideControls() else showControls(view)
+            showControls()
         }
     }
 
@@ -175,7 +259,14 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
         return if (h > 0) String.format("%d:%02d:%02d", h, m, sec) else String.format("%02d:%02d", m, sec)
     }
 
+    override fun onPause() {
+        super.onPause()
+        savePosition()
+        player?.pause()
+    }
+
     override fun onDestroyView() {
+        savePosition()
         handler.removeCallbacksAndMessages(null)
         player?.release(); player = null
         if (isFullscreen) exitFullscreen()

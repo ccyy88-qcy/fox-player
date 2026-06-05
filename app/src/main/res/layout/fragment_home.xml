@@ -4,79 +4,90 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF14171C">
+    android:background="@color/fox_background">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:overScrollMode="never">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- 顶部品牌栏 -->
+            <!-- ===== 品牌栏 ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
+                android:layout_height="48dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="16dp"
-                android:background="#FF1A1D24">
+                android:background="@color/fox_surface">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🦊 FoxPlayer"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/fox_text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
+
+                <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="v1.1"
+                    android:textColor="@color/fox_text_hint"
+                    android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- 搜索框 -->
+            <!-- ===== 搜索框 ===== -->
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/searchView"
                 android:layout_width="match_parent"
                 android:layout_height="44dp"
-                android:layout_marginHorizontal="12dp"
+                android:layout_marginHorizontal="14dp"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/search_bg"
                 android:iconifiedByDefault="false"
-                android:queryHint="搜索影片/演员/导演..."
-                android:textColorPrimary="@android:color/white"
-                android:textColorHint="#FF888888" />
+                android:queryHint="搜索电影、剧集、综艺..."
+                android:textColorPrimary="@color/fox_text_primary"
+                android:textColorHint="@color/fox_text_hint" />
 
-            <!-- 分类 Chips -->
+            <!-- ===== 分类Chips ===== -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:scrollbars="none"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="10dp"
+                android:paddingStart="14dp">
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/chipCategory"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingHorizontal="8dp"
+                    android:paddingEnd="14dp"
                     app:singleSelection="true"
-                    app:chipSpacingHorizontal="6dp" />
+                    app:chipSpacingHorizontal="8dp" />
             </HorizontalScrollView>
 
-            <!-- 热播榜单 -->
+            <!-- ===== 热播榜单 ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="12dp"
-                android:paddingHorizontal="12dp">
+                android:layout_marginTop="16dp"
+                android:paddingHorizontal="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🔥 热播榜单"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
+                    android:textColor="@color/fox_text_primary"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
@@ -84,34 +95,34 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="更多 >"
-                    android:textColor="#FF888888"
-                    android:textSize="11sp" />
+                    android:text="更多 ›"
+                    android:textColor="@color/fox_text_hint"
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvHotRank"
                 android:layout_width="match_parent"
-                android:layout_height="170dp"
+                android:layout_height="175dp"
                 android:layout_marginTop="6dp"
                 android:clipToPadding="false"
-                android:paddingHorizontal="8dp" />
+                android:paddingHorizontal="10dp" />
 
-            <!-- 最新上线 -->
+            <!-- ===== 最新上线 ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="6dp"
-                android:paddingHorizontal="12dp">
+                android:layout_marginTop="8dp"
+                android:paddingHorizontal="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="⚡ 最新上线"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
+                    android:textColor="@color/fox_text_primary"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
@@ -119,47 +130,46 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="更多 >"
-                    android:textColor="#FF888888"
-                    android:textSize="11sp" />
+                    android:text="更多 ›"
+                    android:textColor="@color/fox_text_hint"
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvLatest"
                 android:layout_width="match_parent"
-                android:layout_height="170dp"
+                android:layout_height="175dp"
                 android:layout_marginTop="6dp"
                 android:clipToPadding="false"
-                android:paddingHorizontal="8dp" />
+                android:paddingHorizontal="10dp" />
 
-            <!-- 精选推荐分隔 -->
+            <!-- ===== 全部影片 ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginTop="12dp"
-                android:paddingHorizontal="12dp">
+                android:layout_marginTop="16dp"
+                android:paddingHorizontal="14dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="📋 全部影片"
-                    android:textColor="@android:color/white"
-                    android:textSize="15sp"
+                    android:textColor="@color/fox_text_primary"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
 
-                <!-- 加载指示器 -->
                 <ProgressBar
                     android:id="@+id/progressLoading"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:indeterminateTint="@color/fox_accent"
                     android:visibility="gone" />
             </LinearLayout>
 
-            <!-- 影视网格（3列） -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvVideos"
                 android:layout_width="match_parent"
@@ -169,25 +179,27 @@
                 android:nestedScrollingEnabled="false"
                 android:clipToPadding="false" />
 
-            <!-- 加载更多提示 -->
+            <!-- 加载更多 -->
             <ProgressBar
                 android:id="@+id/progressMore"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
+                android:indeterminateTint="@color/fox_accent"
                 android:visibility="gone"
                 android:layout_margin="16dp" />
 
+            <!-- 空状态 -->
             <TextView
                 android:id="@+id/tvEmpty"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="暂无数据，下拉刷新"
-                android:textColor="#FF666666"
+                android:text="暂无数据"
+                android:textColor="@color/fox_text_hint"
                 android:textSize="14sp"
                 android:visibility="gone"
-                android:padding="32dp" />
+                android:padding="40dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

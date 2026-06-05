@@ -5,18 +5,21 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="3dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground"
     app:cardCornerRadius="10dp"
-    app:cardBackgroundColor="#FF1E2128"
-    app:cardElevation="3dp"
+    app:cardBackgroundColor="@color/fox_card"
+    app:cardElevation="2dp"
     app:strokeWidth="0.5dp"
-    app:strokeColor="#FF333333">
+    app:strokeColor="@color/fox_divider">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- 封面 -->
+        <!-- 封面区域带渐变遮罩 -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="160dp">
@@ -26,38 +29,46 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:background="#FF2A2D35" />
+                android:background="@color/fox_surface2" />
 
-            <!-- 品质标签 -->
+            <!-- 底部渐变 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_gravity="bottom"
+                android:background="@drawable/gradient_cover" />
+
+            <!-- 品质标签（左上） -->
             <TextView
                 android:id="@+id/tvQuality"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/white"
                 android:textSize="9sp"
-                android:background="#FFFF6B6B"
+                android:textStyle="bold"
+                android:background="@color/fox_accent"
                 android:paddingHorizontal="5dp"
-                android:paddingVertical="1dp"
-                android:layout_margin="4dp"
+                android:paddingVertical="2dp"
+                android:layout_margin="5dp"
                 android:visibility="gone" />
 
-            <!-- 评分角标 -->
+            <!-- 评分角标（左下） -->
             <TextView
                 android:id="@+id/tvRating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFD700"
-                android:textSize="10sp"
+                android:textColor="@color/fox_gold"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:layout_gravity="bottom|start"
-                android:layout_margin="4dp"
+                android:layout_margin="6dp"
                 android:background="#88000000"
-                android:paddingHorizontal="4dp"
-                android:paddingVertical="1dp" />
+                android:paddingHorizontal="5dp"
+                android:paddingVertical="2dp" />
 
         </FrameLayout>
 
-        <!-- 信息区域 -->
+        <!-- 文字信息 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -68,7 +79,7 @@
                 android:id="@+id/tvTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/white"
+                android:textColor="@color/fox_text_primary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:maxLines="1"
@@ -79,9 +90,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginTop="2dp">
-                <TextView android:id="@+id/tvYear" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF999999" android:textSize="10sp" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" · " android:textColor="#FF666666" android:textSize="10sp" />
-                <TextView android:id="@+id/tvType" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FF999999" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/tvYear" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/fox_text_hint" android:textSize="10sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" · " android:textColor="@color/fox_divider" android:textSize="10sp" />
+                <TextView android:id="@+id/tvType" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/fox_text_hint" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" />
             </LinearLayout>
 
         </LinearLayout>

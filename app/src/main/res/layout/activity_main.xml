@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/fox_surface">
+    android:background="@color/fox_background">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host"
@@ -18,13 +18,24 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- 底部导航分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="@color/fox_divider"
+        app:layout_constraintBottom_toTopOf="@id/bottom_nav"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_nav"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/fox_primary"
-        app:itemIconTint="@color/fox_accent"
-        app:itemTextColor="@color/fox_accent"
+        android:layout_height="56dp"
+        android:background="@color/fox_nav_bg"
+        app:itemIconSize="22dp"
+        app:itemIconTint="@drawable/bottom_nav_tint"
+        app:itemTextColor="@drawable/bottom_nav_tint"
+        app:itemActiveIndicatorStyle="@null"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav_menu"
         app:layout_constraintBottom_toBottomOf="parent"

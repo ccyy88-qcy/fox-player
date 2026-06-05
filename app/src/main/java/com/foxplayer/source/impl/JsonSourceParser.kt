@@ -22,25 +22,11 @@ class JsonSourceParser(
     private val playParseUrl: String = "",
 ) : ISourceParser {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .addNetworkInterceptor { chain ->
-            val req = chain.request().newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36")
-                .header("Referer", chain.request().url.toString())
-                .build()
-            chain.proceed(req)
-        }
-        .build()
     private val gson = Gson()
 
     private suspend fun fetchJson(url: String): JsonObject? = withContext(Dispatchers.IO) {
         try {
-            val resp = client.newCall(Request.Builder().url(url).build()).execute()
-            val body = resp.body?.string()
+            val body = com.foxplayer.util.HttpClientManager.get(url)
             gson.fromJson(body, JsonObject::class.java)
         } catch (e: Exception) {
             android.util.Log.e("JsonSourceParser", "fetchJson error: $url", e)

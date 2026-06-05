@@ -1,14 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="fox_primary">#FF0F0F1A</color>
-    <color name="fox_primary_variant">#FF1A1A2E</color>
+    <!-- same as values/colors.xml — dark-only theme -->
+    <color name="fox_background">#FF0D0D14</color>
+    <color name="fox_surface">#FF14141F</color>
+    <color name="fox_surface2">#FF1C1C2E</color>
+    <color name="fox_surface3">#FF25253B</color>
+    <color name="fox_card">#FF1A1A2A</color>
+    <color name="fox_card_hover">#FF222238</color>
     <color name="fox_accent">#FFFF6B6B</color>
+    <color name="fox_accent_light">#FFFF8A8A</color>
     <color name="fox_accent2">#FF4ECDC4</color>
-    <color name="fox_surface">#FF1A1A2E</color>
-    <color name="fox_on_primary">#FFFFFFFF</color>
+    <color name="fox_blue">#FF6BB8FF</color>
+    <color name="fox_gold">#FFFFD700</color>
     <color name="fox_on_surface">#FFE8ECF0</color>
+    <color name="fox_text_primary">#FFE8ECF0</color>
     <color name="fox_text_secondary">#FF8892A0</color>
-    <color name="fox_divider">#FF2A2A3E</color>
-    <color name="fox_card_bg">#FF232336</color>
+    <color name="fox_text_hint">#FF555566</color>
+    <color name="fox_divider">#FF25253B</color>
+    <color name="fox_nav_bg">#FF0F0F1A</color>
     <color name="fox_rating">#FFFFB800</color>
+    <color name="fox_chip_bg">#FF25253B</color>
+    <color name="fox_chip_selected">#FFFF6B6B</color>
+    <color name="fox_overlay">#88000000</color>
+    <color name="fox_gradient_start">#00000000</color>
+    <color name="fox_gradient_end">#CC000000</color>
 </resources>

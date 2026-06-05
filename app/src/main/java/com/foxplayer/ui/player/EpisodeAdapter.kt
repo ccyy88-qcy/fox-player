@@ -40,11 +40,11 @@ class EpisodeAdapter(
         val name = ep.name.ifBlank { "第${position + 1}集" }
         holder.tv.text = name
 
-        // 如果剧集名包含源标记，用颜色区分
+        // 带源标记的用颜色区分
         if (name.contains("[") && name.contains("]")) {
-            holder.tv.setBackgroundColor(0xFF2A2D35.toInt())
+            holder.tv.setTextColor(0xFFFF8A8A.toInt()) // accent light
         } else {
-            holder.tv.setBackgroundColor(0xFF2A2D35.toInt())
+            holder.tv.setTextColor(0xFF8892A0.toInt()) // text secondary
         }
     }
 
