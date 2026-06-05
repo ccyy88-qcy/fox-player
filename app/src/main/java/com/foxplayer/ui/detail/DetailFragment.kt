@@ -42,6 +42,10 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
     private var allEpisodesBySource = mutableMapOf<String, List<Episode>>()
     private var episodesLoaded = false
 
+    // 正倒序
+    private var sortAscending = true
+    private var rawEpisodes = listOf<Episode>()
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -66,6 +70,20 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
         view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
             findNavController().navigateUp()
         }
+
+        // 正倒序切换
+        val btnSort = view.findViewById<TextView>(R.id.btnSortOrder)
+        btnSort?.setOnClickListener {
+            sortAscending = !sortAscending
+            btnSort.text = if (sortAscending) "正序 ▼" else "倒序 ▲"
+            applySort()
+        }
+    }
+
+    /** 应用排序到剧集列表 */
+    private fun applySort() {
+        val sorted = if (sortAscending) rawEpisodes else rawEpisodes.reversed()
+        episodeAdapter.submitList(sorted)
     }
 
     private fun bindBasicInfo(view: View) {
@@ -165,7 +183,8 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
                         if (episodes.isNotEmpty()) {
                             allEpisodesBySource[selectedSource.api] = episodes
                             video = video?.copy(episodes = episodes)
-                            episodeAdapter.submitList(episodes)
+                            rawEpisodes = episodes
+                            applySort()
                             android.widget.Toast.makeText(requireContext(),
                                 "已切换至 ${selectedSource.name}，找到 ${episodes.size} 集",
                                 android.widget.Toast.LENGTH_SHORT).show()
@@ -273,6 +292,8 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
                     video = detail
                     view.findViewById<TextView>(R.id.tvDetailDesc).text = detail.desc
                     episodeAdapter.submitList(detail.episodes)
+                    rawEpisodes = detail.episodes
+                    applySort()
                     allEpisodesBySource[sourceKey] = detail.episodes
                     episodesLoaded = true
                 }
