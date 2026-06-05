@@ -2,51 +2,65 @@ package com.foxplayer.ui.live
 
 import android.os.Bundle
 import android.view.View
+import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.foxplayer.R
-import com.foxplayer.databinding.FragmentLiveBinding
+import com.foxplayer.model.LiveChannel
 import com.foxplayer.viewmodel.LiveViewModel
+import com.google.android.material.chip.Chip
 
 class LiveFragment : Fragment(R.layout.fragment_live) {
-    private var _binding: FragmentLiveBinding? = null
-    private val binding get() = _binding!!
     private val vm: LiveViewModel by viewModels()
     private lateinit var adapter: LiveChannelAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        _binding = FragmentLiveBinding.bind(view)
+        super.onViewCreated(view, savedInstanceState)
 
         adapter = LiveChannelAdapter { channel ->
-            val dir = LiveFragmentDirections.actionLiveToPlayer(
-                channel.url, channel.name, channel.logo
-            )
-            findNavController().navigate(dir)
+            val args = Bundle().apply {
+                putString("url", channel.url)
+                putString("title", channel.name)
+            }
+            findNavController().navigate(R.id.playerFragment, args)
         }
-        binding.rvChannels.layoutManager = GridLayoutManager(requireContext(), 4)
-        binding.rvChannels.adapter = adapter
+
+        val rv = view.findViewById<RecyclerView>(R.id.rvChannels)
+        rv.layoutManager = GridLayoutManager(requireContext(), 4)
+        rv.adapter = adapter
+
+        val tvEmpty = view.findViewById<TextView>(R.id.tvEmpty)
 
         vm.channels.observe(viewLifecycleOwner) { list ->
-            val group = vm.selectedGroup.value
-            adapter.submitList(if (group == "全部") list else list.filter { it.group == group })
+            adapter.submitList(list)
+            tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            tvEmpty.text = if (list.isEmpty()) "📡 直播源加载中..." else ""
         }
         vm.groups.observe(viewLifecycleOwner) { groups ->
-            binding.chipGroup.removeAllViews()
+            val chipGroup = view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroup)
+            chipGroup.removeAllViews()
             groups.forEach { g ->
-                val chip = com.google.android.material.chip.Chip(requireContext()).apply {
+                val chip = Chip(requireContext()).apply {
                     text = g
                     isCheckable = true
-                    setOnCheckedChangeListener { _, checked -> if (checked) vm.selectGroup(g) }
+                    setOnCheckedChangeListener { _, checked ->
+                        if (checked) vm.selectGroup(g)
+                    }
                 }
-                binding.chipGroup.addView(chip)
+                chipGroup.addView(chip)
             }
-            (binding.chipGroup.getChildAt(0) as? com.google.android.material.chip.Chip)?.isChecked = true
+            if (groups.isNotEmpty()) {
+                (chipGroup.getChildAt(0) as? Chip)?.isChecked = true
+            }
         }
 
-        vm.loadChannels()
-    }
+        vm.toast.observe(viewLifecycleOwner) { msg ->
+            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+        }
 
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
+        vm.loadDefaultChannels()
+    }
 }

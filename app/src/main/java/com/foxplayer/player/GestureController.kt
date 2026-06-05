@@ -30,12 +30,12 @@ class GestureController(
     private var isLongPressing = false
     private var savedSpeed = 1f
 
-    val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+    private val listener = object : GestureDetector.OnGestureListener {
+        override fun onDown(e: MotionEvent): Boolean = true
 
-        override fun onDoubleTap(e: MotionEvent): Boolean {
-            if (player.isPlaying()) player.pause() else player.play()
-            return true
-        }
+        override fun onShowPress(e: MotionEvent) {}
+
+        override fun onSingleTapUp(e: MotionEvent): Boolean = false
 
         override fun onLongPress(e: MotionEvent) {
             isLongPressing = true
@@ -44,37 +44,41 @@ class GestureController(
             onSpeedChange(2f)
         }
 
+        override fun onFling(
+            e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float
+        ): Boolean = false
+
         override fun onScroll(
-            down: MotionEvent, move: MotionEvent, dx: Float, dy: Float
+            e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float
         ): Boolean {
-            val viewWidth = (down.source and MotionEvent.TOOL_TYPE_FINGER.inv()).toFloat().coerceAtLeast(1f)
+            val start = e1 ?: return false
             val viewW = 1080f  // approximate
             val viewH = 1920f
 
-            val isLeftHalf = down.x < viewW / 2
-            val isVertical = abs(dy) > abs(dx)
+            val isLeftHalf = start.x < viewW / 2
+            val isVertical = abs(distanceY) > abs(distanceX)
 
             when {
                 isVertical && isLeftHalf -> {
                     // 亮度
-                    val delta = -dy / viewH * 255
+                    val delta = -distanceY / viewH * 255
                     val current = Settings.System.getInt(
                         context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128
                     )
-                    val new = (current + delta).coerceIn(0f, 255f)
-                    onBrightChange(new / 255f)
+                    val newBrightness = (current + delta).coerceIn(0f, 255f)
+                    onBrightChange(newBrightness / 255f)
                 }
                 isVertical && !isLeftHalf -> {
                     // 音量
-                    val delta = -dy / viewH * maxVolume
+                    val delta = -distanceY / viewH * maxVolume
                     val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                    val new = (current + delta).toInt().coerceIn(0, maxVolume)
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, new, 0)
-                    onVolumeChange(new)
+                    val newVolume = (current + delta).toInt().coerceIn(0, maxVolume)
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                    onVolumeChange(newVolume)
                 }
                 !isVertical -> {
                     // 进度
-                    val deltaSec = dx / viewW * 120  // 满屏=120秒
+                    val deltaSec = distanceX / viewW * 120  // 满屏=120秒
                     val newPos = (player.getCurrentPosition() + (deltaSec * 1000).toLong())
                         .coerceIn(0, player.getDuration())
                     player.seekTo(newPos)
@@ -84,7 +88,20 @@ class GestureController(
             }
             return true
         }
-    })
+    }
+
+    private val doubleTapListener = object : GestureDetector.OnDoubleTapListener {
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            if (player.isPlaying()) player.pause() else player.play()
+            return true
+        }
+        override fun onDoubleTapEvent(e: MotionEvent): Boolean = false
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean = false
+    }
+
+    val gestureDetector = GestureDetector(context, listener).apply {
+        setOnDoubleTapListener(doubleTapListener)
+    }
 
     fun onTouchEvent(e: MotionEvent) {
         gestureDetector.onTouchEvent(e)

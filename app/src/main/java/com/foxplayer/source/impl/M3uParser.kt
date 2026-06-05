@@ -46,15 +46,16 @@ object M3uParser {
         var currentLogo = ""
         var currentName = ""
 
+        val groupPattern = Regex("""group-title="([^"]+)"""")
+        val logoPattern = Regex("""tvg-logo="([^"]+)"""")
+        val namePattern = Regex(""",(.+)$""")
+
         text.lines().forEach { line ->
             when {
                 line.startsWith("#EXTINF:") -> {
-                    val groupMatch = Regex("group-title="([^"]+)"").find(line)
-                    currentGroup = groupMatch?.groupValues?.get(1) ?: "默认"
-                    val logoMatch = Regex("tvg-logo="([^"]+)"").find(line)
-                    currentLogo = logoMatch?.groupValues?.get(1) ?: ""
-                    val nameMatch = Regex(",(.+)$").find(line)
-                    currentName = nameMatch?.groupValues?.get(1)?.trim() ?: ""
+                    currentGroup = groupPattern.find(line)?.groupValues?.get(1) ?: "默认"
+                    currentLogo = logoPattern.find(line)?.groupValues?.get(1) ?: ""
+                    currentName = namePattern.find(line)?.groupValues?.get(1)?.trim() ?: ""
                 }
                 line.startsWith("http") && currentName.isNotEmpty() -> {
                     channels.add(LiveChannel(
@@ -95,7 +96,7 @@ object M3uParser {
     /** 简单TXT格式: 频道名 URL */
     private fun parseTxt(text: String): List<LiveChannel> {
         return text.lines().map { it.trim() }.filter { it.isNotEmpty() }.mapNotNull { line ->
-            val parts = line.split(Regex("\s+"), limit = 2)
+            val parts = line.split(Regex("\\s+"), limit = 2)
             if (parts.size == 2 && parts[1].startsWith("http")) {
                 LiveChannel(name = parts[0], url = parts[1])
             } else null

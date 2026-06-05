@@ -14,7 +14,6 @@ import java.net.URLEncoder
 
 /**
  * JSON API 源解析器 — 兼容苹果CMS V10 / 影视CMS 等标准JSON接口
- * API格式: /api.php/provide/vod/?ac=videolist&pg=1&t=1&wd=关键词
  */
 class JsonSourceParser(
     override val sourceKey: String,
@@ -26,23 +25,40 @@ class JsonSourceParser(
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .addNetworkInterceptor { chain ->
+            val req = chain.request().newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("Referer", chain.request().url.toString())
+                .build()
+            chain.proceed(req)
+        }
         .build()
     private val gson = Gson()
 
     private suspend fun fetchJson(url: String): JsonObject? = withContext(Dispatchers.IO) {
         try {
             val resp = client.newCall(Request.Builder().url(url).build()).execute()
-            gson.fromJson(resp.body?.string(), JsonObject::class.java)
-        } catch (_: Exception) { null }
+            val body = resp.body?.string()
+            gson.fromJson(body, JsonObject::class.java)
+        } catch (e: Exception) {
+            android.util.Log.e("JsonSourceParser", "fetchJson error: $url", e)
+            null
+        }
     }
 
     override suspend fun getCategoryVideos(category: String, page: Int): List<Video> {
-        val typeMap = mapOf(
-            "MOVIE" to 1, "TV" to 2, "ANIME" to 3, "VARIETY" to 4
-        )
-        val typeId = typeMap[category] ?: 1
-        val json = fetchJson("$apiUrl?ac=videolist&pg=$page&t=$typeId") ?: return emptyList()
-        return parseVideoList(json)
+        // 不传分类参数，拉全部数据，客户端按type_name筛选
+        val url = "$apiUrl?ac=videolist&pg=$page"
+        val json = fetchJson(url) ?: return emptyList()
+        val all = parseVideoList(json)
+        // 按分类名筛选
+        if (category == "MOVIE") return all.filter { it.type.contains("电影") || it.type.contains("片") }
+        if (category == "TV") return all.filter { it.type.contains("剧") || it.type.contains("电视") }
+        if (category == "ANIME") return all.filter { it.type.contains("动漫") || it.type.contains("动画") || it.type.contains("番") }
+        if (category == "VARIETY") return all.filter { it.type.contains("综艺") || it.type.contains("秀") }
+        return all
     }
 
     override suspend fun search(keyword: String, page: Int): List<Video> {
@@ -77,8 +93,9 @@ class JsonSourceParser(
             Video(
                 id = obj.get("vod_id")?.asString ?: "",
                 title = obj.get("vod_name")?.asString ?: "",
-                cover = obj.get("vod_pic")?.asString ?: "",
-                desc = obj.get("vod_content")?.asString?.take(100) ?: "",
+                cover = (obj.get("vod_pic")?.asString ?: "")
+                    .replace("\\/", "/").replace("\\u0026", "&"),
+                desc = obj.get("vod_content")?.asString?.take(200) ?: "",
                 year = obj.get("vod_year")?.asString ?: "",
                 area = obj.get("vod_area")?.asString ?: "",
                 type = obj.get("type_name")?.asString ?: "",
@@ -91,22 +108,22 @@ class JsonSourceParser(
     private fun parseVideoDetail(detail: JsonObject, base: Video): Video {
         val vodPlayUrl = detail.get("vod_play_url")?.asString ?: ""
         val vodPlayFrom = detail.get("vod_play_from")?.asString ?: ""
-
-        // 解析多线路剧集: "第01集$url1#第02集$url2$$$线路2$第01集$url3#..."
         val lines = vodPlayUrl.split("$$$")
         val lineNames = vodPlayFrom.split("$$$")
         val episodes = mutableListOf<Episode>()
-
         lines.forEachIndexed { idx, line ->
             val lineName = lineNames.getOrElse(idx) { "线路${idx + 1}" }
             line.split("#").forEach { epStr ->
                 val parts = epStr.split("$")
-                if (parts.size == 2) {
-                    episodes.add(Episode(name = "[${lineName}] ${parts[0]}", url = parts[1]))
+                if (parts.size >= 2) {
+                    val rawUrl = parts[1].replace("\\/", "/").replace("\\u0026", "&").trim()
+                    val cleanUrl = if (rawUrl.startsWith("//")) "https:$rawUrl" else rawUrl
+                    if (cleanUrl.isNotBlank() && cleanUrl.startsWith("http")) {
+                        episodes.add(Episode(name = "[${lineName}] ${parts[0].trim()}", url = cleanUrl))
+                    }
                 }
             }
         }
-
         return base.copy(
             desc = detail.get("vod_content")?.asString ?: base.desc,
             episodes = episodes,

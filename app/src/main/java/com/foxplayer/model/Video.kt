@@ -2,6 +2,7 @@ package com.foxplayer.model
 
 import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
+import java.io.Serializable as JSerializable
 
 @Serializable
 @Keep
@@ -17,11 +18,11 @@ data class Video(
     val playUrl: String = "",      // direct play URL
     val sourceKey: String = "",    // which source
     val episodes: List<Episode> = emptyList(),
-)
+) : JSerializable
 
 @Serializable
 @Keep
 data class Episode(
     val name: String = "",
     val url: String = "",
-)
+) : JSerializable

@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.foxplayer.model.Video
+import com.foxplayer.FoxApp
 import com.foxplayer.source.SourceManager
 import kotlinx.coroutines.launch
 

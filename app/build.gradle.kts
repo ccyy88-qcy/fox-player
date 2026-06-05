@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("androidx.navigation.safeargs.kotlin")
 }
 
 android {
@@ -91,4 +92,7 @@ dependencies {
 
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // FlexboxLayout for search hot keywords
+    implementation("com.google.android.flexbox:flexbox:3.0.0")
 }

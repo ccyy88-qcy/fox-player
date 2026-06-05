@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
  * 源管理器 — 多源聚合、自动切换、健康检测
  */
 class SourceManager {
-    private val parsers = mutableMapOf<String, ISourceParser>()
+    val parsers = mutableMapOf<String, ISourceParser>()
     private val _sources = MutableStateFlow<List<VideoSource>>(emptyList())
     val sources: StateFlow<List<VideoSource>> = _sources
 
@@ -34,9 +34,12 @@ class SourceManager {
                 async {
                     try {
                         withTimeout(timeoutMs) { parser.search(keyword) }
-                    } catch (_: Exception) { emptyList() }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SourceManager", "search error: ${parser.sourceKey}", e)
+                        emptyList()
+                    }
                 }
-            }.awaitAll().flatten().distinctBy { it.title }
+            }.awaitAll().flatten().distinctBy { it.id }
         }
     }
 
@@ -45,14 +48,23 @@ class SourceManager {
         val activeParsers = parsers.values.filter { p ->
             _sources.value.any { it.key == p.sourceKey && it.enabled }
         }
-        return coroutineScope {
+        android.util.Log.d("SourceManager", "getCategoryAll: cat=$page, activeParsers=${activeParsers.size}")
+        val result = coroutineScope {
             activeParsers.map { parser ->
                 async {
-                    try { parser.getCategoryVideos(category, page) }
-                    catch (_: Exception) { emptyList() }
+                    try {
+                        val list = parser.getCategoryVideos(category, page)
+                        android.util.Log.d("SourceManager", "parser ${parser.sourceKey} returned ${list.size}")
+                        list
+                    } catch (e: Exception) {
+                        android.util.Log.e("SourceManager", "getCategory error: ${parser.sourceKey}", e)
+                        emptyList()
+                    }
                 }
-            }.awaitAll().flatten().distinctBy { it.title }
+            }.awaitAll().flatten().distinctBy { it.id }
         }
+        android.util.Log.d("SourceManager", "getCategoryAll result: ${result.size}")
+        return result
     }
 
     /** 获取详情，源失效自动切换备用 */
@@ -61,7 +73,6 @@ class SourceManager {
         return try {
             parser.getDetail(video)
         } catch (_: Exception) {
-            // 尝试其他源搜索同标题
             val altResults = searchAll(video.title, timeoutMs = 5000)
             altResults.firstOrNull()?.let { alt ->
                 parsers[alt.sourceKey]?.getDetail(alt)
@@ -69,13 +80,12 @@ class SourceManager {
         }
     }
 
-    /** 解析播放地址，支持多线路自动切换 */
-    suspend fun parsePlayWithFallback(episode: com.foxplayer.model.Episode, sourceKey: String): String? {
+    /** 解析播放地址 */
+    suspend fun parsePlayUrl(episode: com.foxplayer.model.Episode, sourceKey: String): String? {
         val parser = parsers[sourceKey] ?: return null
         return try {
             parser.parsePlayUrl(episode)
         } catch (_: Exception) {
-            // 标记源不健康
             markSourceUnhealthy(sourceKey)
             null
         }

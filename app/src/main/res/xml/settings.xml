@@ -1,22 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <ListPreference
-        android:key="theme"
-        android:title="主题模式"
-        android:entries="@array/theme_names"
-        android:entryValues="@array/theme_values"
-        android:defaultValue="2" />
-    <SwitchPreference
-        android:key="hw_decode"
-        android:title="硬件解码"
-        android:defaultValue="true"
-        android:summary="关闭则使用软解" />
-    <Preference
-        android:key="source_manage"
-        android:title="源管理"
-        android:summary="添加/编辑/删除视频源" />
-    <Preference
-        android:key="about"
-        android:title="关于"
-        android:summary="狐狸播放器 v1.0.0" />
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="播放设置">
+        <ListPreference
+            android:key="play_speed"
+            app:title="默认播放速度"
+            app:entries="@array/play_speed_labels"
+            app:entryValues="@array/play_speed_values"
+            app:defaultValue="1.0"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreference
+            android:key="pip_enabled"
+            app:title="画中画模式"
+            app:defaultValue="true" />
+        <SwitchPreference
+            android:key="hw_decode"
+            app:title="硬件解码"
+            app:summary="使用硬件解码器，更省电"
+            app:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="外观">
+        <ListPreference
+            android:key="theme"
+            app:title="主题"
+            app:entries="@array/theme_labels"
+            app:entryValues="@array/theme_values"
+            app:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="数据">
+        <Preference
+            android:key="clear_cache"
+            app:title="清理缓存"
+            app:summary="点击清理播放缓存" />
+        <Preference
+            android:key="clear_search_history"
+            app:title="清除搜索历史" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="关于">
+        <Preference
+            app:title="版本"
+            app:summary="1.0.0"
+            app:selectable="false" />
+    </PreferenceCategory>
 </PreferenceScreen>
