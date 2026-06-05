@@ -13,6 +13,8 @@
             app:destination="@id/detailFragment" />
         <action android:id="@+id/action_home_to_live"
             app:destination="@id/liveFragment" />
+        <action android:id="@+id/action_home_to_search"
+            app:destination="@id/searchFragment" />
     </fragment>
 
     <fragment android:id="@+id/searchFragment"

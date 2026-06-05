@@ -116,6 +116,27 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
         // ★ 初始加载首页数据
         vm.loadHomeData()
+
+        // ── 搜索框 ──
+        val searchView = view.findViewById<androidx.appcompat.widget.SearchView>(R.id.searchView)
+        searchView?.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(q: String): Boolean {
+                if (q.isNotBlank()) {
+                    val args = Bundle().apply { putString("query", q) }
+                    try {
+                        findNavController().navigate(R.id.action_home_to_search, args)
+                    } catch (_: Exception) {
+                        findNavController().navigate(R.id.searchFragment, args)
+                    }
+                }
+                return true
+            }
+            override fun onQueryTextChange(q: String): Boolean = false
+        })
+        // 让搜索框可点击
+        searchView?.isFocusable = true
+        searchView?.isFocusableInTouchMode = true
+        searchView?.setIconifiedByDefault(false)
     }
 
     private fun navigateToDetail(video: Video) {
