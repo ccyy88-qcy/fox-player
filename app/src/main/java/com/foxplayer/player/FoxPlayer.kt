@@ -38,7 +38,7 @@ class FoxPlayer(private val context: Context) {
         exoPlayer = ExoPlayer.Builder(context)
             .setTrackSelector(trackSelector)
             .setLoadControl(DefaultLoadControl.Builder().apply {
-                // 增大缓冲: 初始10秒, 最大50秒, 重缓冲5秒
+                // 增大缓冲: 初始15秒, 最大60秒, 重缓冲5秒
                 setBufferDurationsMs(15_000, 60_000, 5_000, 10_000)
             }.build())
             .setAudioAttributes(AudioAttributes.Builder()
@@ -46,6 +46,9 @@ class FoxPlayer(private val context: Context) {
                 .setUsage(C.USAGE_MEDIA).build(), true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+
+        // ★ 强制保持视频原始比例（不拉伸）
+        exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT)
 
         exoPlayer.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
