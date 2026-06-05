@@ -10,7 +10,7 @@
     android:foreground="?android:attr/selectableItemBackground"
     app:cardCornerRadius="10dp"
     app:cardBackgroundColor="@color/fox_card"
-    app:cardElevation="2dp"
+    app:cardElevation="1dp"
     app:strokeWidth="0.5dp"
     app:strokeColor="@color/fox_divider">
 
@@ -19,7 +19,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- 封面区域带渐变遮罩 -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="160dp">
@@ -31,14 +30,12 @@
                 android:scaleType="centerCrop"
                 android:background="@color/fox_surface2" />
 
-            <!-- 底部渐变 -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
                 android:layout_gravity="bottom"
                 android:background="@drawable/gradient_cover" />
 
-            <!-- 品质标签（左上） -->
             <TextView
                 android:id="@+id/tvQuality"
                 android:layout_width="wrap_content"
@@ -52,7 +49,6 @@
                 android:layout_margin="5dp"
                 android:visibility="gone" />
 
-            <!-- 评分角标（左下） -->
             <TextView
                 android:id="@+id/tvRating"
                 android:layout_width="wrap_content"
@@ -65,10 +61,8 @@
                 android:background="#88000000"
                 android:paddingHorizontal="5dp"
                 android:paddingVertical="2dp" />
-
         </FrameLayout>
 
-        <!-- 文字信息 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -94,8 +88,6 @@
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" · " android:textColor="@color/fox_divider" android:textSize="10sp" />
                 <TextView android:id="@+id/tvType" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/fox_text_hint" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" />
             </LinearLayout>
-
         </LinearLayout>
-
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

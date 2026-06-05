@@ -2,38 +2,50 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF14171C">
+    android:background="@color/fox_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- 标题栏 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center_vertical"
-            android:paddingHorizontal="16dp"
-            android:orientation="horizontal">
+            android:paddingHorizontal="8dp"
+            android:orientation="horizontal"
+            android:background="@color/fox_surface">
+
+            <ImageView
+                android:id="@+id/ivBack"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="6dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="返回" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="⭐ 我的收藏"
-                android:textColor="@android:color/white"
+                android:textColor="@color/fox_text_primary"
                 android:textSize="17sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:layout_marginStart="4dp" />
 
             <TextView
                 android:id="@+id/tvEditFavorite"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="编辑"
-                android:textColor="#FFFF6B6B"
+                android:textColor="@color/fox_accent"
                 android:textSize="13sp" />
         </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp" android:background="@color/fox_divider" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvFavorites"
@@ -43,7 +55,6 @@
             android:clipToPadding="false" />
     </LinearLayout>
 
-    <!-- 空状态 -->
     <LinearLayout
         android:id="@+id/layoutEmpty"
         android:layout_width="match_parent"
@@ -51,19 +62,7 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📭"
-            android:textSize="48sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="暂无收藏"
-            android:textColor="#FF999999"
-            android:textSize="15sp"
-            android:layout_marginTop="12dp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📭" android:textSize="48sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="暂无收藏" android:textColor="@color/fox_text_hint" android:textSize="15sp" android:layout_marginTop="12dp" />
     </LinearLayout>
 </FrameLayout>

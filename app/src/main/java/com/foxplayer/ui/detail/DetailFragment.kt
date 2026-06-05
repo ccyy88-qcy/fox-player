@@ -61,6 +61,11 @@ class DetailFragment : Fragment(R.layout.fragment_detail) {
 
         // 异步加载完整详情
         loadDetail(view)
+
+        // 返回
+        view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
+            findNavController().navigateUp()
+        }
     }
 
     private fun bindBasicInfo(view: View) {

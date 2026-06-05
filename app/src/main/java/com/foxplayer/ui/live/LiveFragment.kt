@@ -29,6 +29,7 @@ class LiveFragment : Fragment(R.layout.fragment_live) {
         }
 
         val rv = view.findViewById<RecyclerView>(R.id.rvChannels)
+        rv.setHasFixedSize(true)
         rv.layoutManager = GridLayoutManager(requireContext(), 4)
         rv.adapter = adapter
 
@@ -62,5 +63,10 @@ class LiveFragment : Fragment(R.layout.fragment_live) {
         }
 
         vm.loadDefaultChannels()
+
+        // 返回
+        view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
+            findNavController().navigateUp()
+        }
     }
 }

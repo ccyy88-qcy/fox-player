@@ -61,6 +61,11 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
 
         // 观察结果
         vm.results.observe(viewLifecycleOwner) { adapter.submitList(it) }
+
+        // 返回
+        view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
+            findNavController().navigateUp()
+        }
     }
 
     private fun doSearch(q: String) {

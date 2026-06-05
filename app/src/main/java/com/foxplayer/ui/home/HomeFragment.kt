@@ -35,18 +35,21 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         // ── 影视网格（3列） ──
         adapter = VideoGridAdapter { video -> navigateToDetail(video) }
         val rvVideos = view.findViewById<RecyclerView>(R.id.rvVideos)
+        rvVideos.setHasFixedSize(true)
         rvVideos.layoutManager = GridLayoutManager(requireContext(), 3)
         rvVideos.adapter = adapter
 
         // ── 热播榜单（横向） ──
         hotAdapter = VideoGridAdapter { video -> navigateToDetail(video) }
         val rvHot = view.findViewById<RecyclerView>(R.id.rvHotRank)
+        rvHot.setHasFixedSize(true)
         rvHot.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvHot.adapter = hotAdapter
 
         // ── 最新上线（横向） ──
         latestAdapter = VideoGridAdapter { video -> navigateToDetail(video) }
         val rvLatest = view.findViewById<RecyclerView>(R.id.rvLatest)
+        rvLatest.setHasFixedSize(true)
         rvLatest.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvLatest.adapter = latestAdapter
 

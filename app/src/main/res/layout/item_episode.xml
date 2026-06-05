@@ -22,5 +22,4 @@
         android:gravity="center"
         android:textColor="@color/fox_text_secondary"
         android:textSize="12sp" />
-
 </com.google.android.material.card.MaterialCardView>

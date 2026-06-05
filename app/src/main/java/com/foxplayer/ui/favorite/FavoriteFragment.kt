@@ -29,5 +29,10 @@ class FavoriteFragment : Fragment(R.layout.fragment_favorite) {
         // TODO: 从Room数据库加载收藏
         // 暂时空列表, 显示空状态
         view.findViewById<View>(R.id.layoutEmpty).visibility = View.VISIBLE
+
+        // 返回
+        view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
+            findNavController().navigateUp()
+        }
     }
 }

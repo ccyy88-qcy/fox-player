@@ -1,27 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- same as values/colors.xml — dark-only theme -->
-    <color name="fox_background">#FF0D0D14</color>
-    <color name="fox_surface">#FF14141F</color>
-    <color name="fox_surface2">#FF1C1C2E</color>
-    <color name="fox_surface3">#FF25253B</color>
-    <color name="fox_card">#FF1A1A2A</color>
-    <color name="fox_card_hover">#FF222238</color>
-    <color name="fox_accent">#FFFF6B6B</color>
-    <color name="fox_accent_light">#FFFF8A8A</color>
+    <!-- 白色主题 -->
+    <color name="fox_background">#FFF5F5F7</color>
+    <color name="fox_surface">#FFFFFFFF</color>
+    <color name="fox_surface2">#FFF0F0F5</color>
+    <color name="fox_surface3">#FFE8E8F0</color>
+    <color name="fox_card">#FFFFFFFF</color>
+    <color name="fox_card_hover">#FFF5F5FA</color>
+    <color name="fox_accent">#FFE85050</color>
+    <color name="fox_accent_light">#FFFF6B6B</color>
     <color name="fox_accent2">#FF4ECDC4</color>
-    <color name="fox_blue">#FF6BB8FF</color>
-    <color name="fox_gold">#FFFFD700</color>
-    <color name="fox_on_surface">#FFE8ECF0</color>
-    <color name="fox_text_primary">#FFE8ECF0</color>
-    <color name="fox_text_secondary">#FF8892A0</color>
-    <color name="fox_text_hint">#FF555566</color>
-    <color name="fox_divider">#FF25253B</color>
-    <color name="fox_nav_bg">#FF0F0F1A</color>
-    <color name="fox_rating">#FFFFB800</color>
-    <color name="fox_chip_bg">#FF25253B</color>
-    <color name="fox_chip_selected">#FFFF6B6B</color>
+    <color name="fox_blue">#FF4A90D9</color>
+    <color name="fox_gold">#FFE6A800</color>
+    <color name="fox_on_surface">#FF1A1A2E</color>
+    <color name="fox_text_primary">#FF1A1A2E</color>
+    <color name="fox_text_secondary">#FF666680</color>
+    <color name="fox_text_hint">#FF9999AA</color>
+    <color name="fox_divider">#FFE8E8F0</color>
+    <color name="fox_nav_bg">#FFFFFFFF</color>
+    <color name="fox_rating">#FFE6A800</color>
+    <color name="fox_chip_bg">#FFF0F0F5</color>
+    <color name="fox_chip_selected">#FFE85050</color>
     <color name="fox_overlay">#88000000</color>
     <color name="fox_gradient_start">#00000000</color>
     <color name="fox_gradient_end">#CC000000</color>
+    <color name="fox_search_bg">#FFF0F0F5</color>
+    <color name="fox_player_bg">#FF000000</color>
 </resources>

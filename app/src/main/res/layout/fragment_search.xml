@@ -1,20 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FF14171C">
+    android:background="@color/fox_background">
 
-    <androidx.appcompat.widget.SearchView
-        android:id="@+id/searchViewMain"
+    <!-- 顶栏：返回+搜索 -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_margin="12dp"
-        android:background="#FF2A2D35"
-        android:iconifiedByDefault="false"
-        android:queryHint="搜索影片/演员"
-        android:textColorPrimary="@android:color/white"
-        android:textColorHint="#FF888888" />
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/fox_surface"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:id="@+id/ivBack"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="返回" />
+
+        <androidx.appcompat.widget.SearchView
+            android:id="@+id/searchViewMain"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/search_bg"
+            android:iconifiedByDefault="false"
+            android:queryHint="搜索影片/演员"
+            android:textColorPrimary="@color/fox_text_primary"
+            android:textColorHint="@color/fox_text_hint" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="0.5dp" android:background="@color/fox_divider" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -25,35 +48,32 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- 热门搜索 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🔥 热门搜索"
-                android:textColor="@android:color/white"
+                android:textColor="@color/fox_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:layout_marginStart="12dp"
-                android:layout_marginTop="8dp" />
+                android:layout_marginStart="14dp"
+                android:layout_marginTop="12dp" />
 
             <com.google.android.flexbox.FlexboxLayout
-                xmlns:app="http://schemas.android.com/apk/res-auto"
                 android:id="@+id/flexHot"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="14dp"
                 android:layout_marginTop="6dp"
                 app:flexWrap="wrap"
                 app:alignItems="flex_start"
                 app:justifyContent="flex_start" />
 
-            <!-- 历史搜索 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="14dp"
                 android:layout_marginTop="16dp">
 
                 <TextView
@@ -61,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="🕐 历史搜索"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/fox_text_primary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -70,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="清空"
-                    android:textColor="#FFFF6B6B"
+                    android:textColor="@color/fox_accent"
                     android:textSize="12sp" />
             </LinearLayout>
 
@@ -79,16 +99,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:paddingHorizontal="12dp" />
+                android:paddingHorizontal="14dp" />
 
-            <!-- 搜索结果 -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvResults"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:paddingHorizontal="4dp" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
