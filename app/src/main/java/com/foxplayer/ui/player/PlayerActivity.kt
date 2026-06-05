@@ -22,8 +22,9 @@ class PlayerActivity : AppCompatActivity() {
     private var title = ""
     private var videoId = ""
     private var isFullscreen = false
-    private var isSeeking = false
     private var controlsVisible = true
+    private var errorRetryCount = 0
+    private var isSeeking = false
     private val handler = Handler(Looper.getMainLooper())
 
     companion object {
@@ -133,7 +134,42 @@ class PlayerActivity : AppCompatActivity() {
                     if (b) View.VISIBLE else View.GONE
             }
             onError = { msg ->
-                Toast.makeText(this@PlayerActivity, "播放错误: $msg", Toast.LENGTH_LONG).show()
+                if (errorRetryCount < 2) {
+                    errorRetryCount++
+                } else {
+                    runOnUiThread {
+                        android.app.AlertDialog.Builder(this@PlayerActivity)
+                            .setTitle("播放失败")
+                            .setMessage("$msg\n\nURL: ${playUrl.take(80)}...")
+                            .setPositiveButton("重试") { _, _ ->
+                                val oldPlayer = player
+                                player = FoxPlayer(this@PlayerActivity).apply {
+                                    play(playUrl)
+                                    onBuffering = { b ->
+                                        findViewById<ProgressBar>(R.id.progressBar).visibility =
+                                            if (b) View.VISIBLE else View.GONE
+                                    }
+                                    onError = { msg2 ->
+                                        runOnUiThread {
+                                            Toast.makeText(this@PlayerActivity, "重试失败: $msg2", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                                player?.setSurface(findViewById(R.id.playerSurface))
+                                oldPlayer?.release()
+                            }
+                            .setNegativeButton("返回") { _, _ -> finish() }
+                            .setNeutralButton("用浏览器打开") { _, _ ->
+                                try {
+                                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(playUrl)))
+                                } catch (_: Exception) { }
+                                finish()
+                            }
+                            .setCancelable(false)
+                            .show()
+                    }
+                }
             }
             onPlaybackStateChanged = { state ->
                 when (state) {

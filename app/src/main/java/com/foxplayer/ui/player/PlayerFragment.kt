@@ -23,6 +23,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
     private var title = ""
     private var videoId = ""
     private var controlsVisible = true
+    private var errorRetryCount = 0
 
     companion object {
         private const val PREFS_NAME = "fox_player_history"
@@ -136,7 +137,11 @@ class PlayerFragment : Fragment(R.layout.fragment_player) {
                         progressBar.visibility = if (b) View.VISIBLE else View.GONE
                     }
                     onError = { msg ->
-                        Toast.makeText(requireContext(), "播放错误: $msg", Toast.LENGTH_LONG).show()
+                        if (errorRetryCount < 2) {
+                            errorRetryCount++
+                        } else {
+                            Toast.makeText(requireContext(), "播放错误: $msg", Toast.LENGTH_LONG).show()
+                        }
                     }
                     onPlaybackStateChanged = { state ->
                         when (state) {
