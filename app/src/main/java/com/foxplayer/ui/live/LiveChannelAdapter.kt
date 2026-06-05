@@ -3,8 +3,8 @@ package com.foxplayer.ui.live
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -15,8 +15,15 @@ class LiveChannelAdapter(
     private val onClick: (LiveChannel) -> Unit
 ) : ListAdapter<LiveChannel, LiveChannelAdapter.VH>(Diff) {
 
+    // 频道首字母头像背景色池
+    private val avatarColors = intArrayOf(
+        0xFFFF6B6B.toInt(), 0xFF4ECDC4.toInt(), 0xFF6BB8FF.toInt(),
+        0xFFFFB800.toInt(), 0xFFA78BFA.toInt(), 0xFF34D399.toInt(),
+        0xFFF472B6.toInt(), 0xFFFB923C.toInt(), 0xFF60A5FA.toInt(),
+    )
+
     inner class VH(view: View) : RecyclerView.ViewHolder(view) {
-        val ivLogo: ImageView = view.findViewById(R.id.ivChannelLogo)
+        val tvAvatar: TextView = view.findViewById(R.id.ivChannelLogo)
         val tvName: TextView = view.findViewById(R.id.tvChannelName)
         val tvGroup: TextView = view.findViewById(R.id.tvChannelGroup)
     }
@@ -29,11 +36,24 @@ class LiveChannelAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val ch = getItem(position)
-        holder.tvName.text = ch.name
+
+        // 频道名 — 去除多余前缀
+        val displayName = ch.name
+            .replace("CCTV-", "CCTV")
+            .replace("cctv", "CCTV")
+            .trim()
+        holder.tvName.text = displayName
+
+        // 分组名
         holder.tvGroup.text = ch.group
-        // 直播封面暂时用文字头像替代
-        holder.ivLogo.setImageDrawable(null)
-        holder.ivLogo.setBackgroundColor(0xFF2A2D35.toInt())
+
+        // 首字母头像
+        val firstChar = displayName.firstOrNull()?.uppercase() ?: "?"
+        holder.tvAvatar.text = firstChar
+        val colorIdx = position % avatarColors.size
+        holder.tvAvatar.setBackgroundColor(avatarColors[colorIdx])
+
+        // 点击
         holder.itemView.setOnClickListener { onClick(ch) }
     }
 

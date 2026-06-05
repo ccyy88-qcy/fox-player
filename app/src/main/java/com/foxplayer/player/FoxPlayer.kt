@@ -178,6 +178,8 @@ class FoxPlayer(private val context: Context) {
 
     fun setSurface(surfaceView: SurfaceView) {
         exoPlayer.setVideoSurface(surfaceView.holder.surface)
+        // 保持视频原始比例，不拉伸
+        exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT)
     }
     fun play() { exoPlayer.play() }
     fun pause() { exoPlayer.pause() }
